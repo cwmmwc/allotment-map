@@ -73,12 +73,12 @@ App.drawTemporalChart = function(years) {
     var x = 30 + i * barW;
     var y = H - 14 - barH;
 
-    ctx.fillStyle = 'rgba(200, 164, 74, 0.7)';
+    ctx.fillStyle = 'rgba(212, 160, 23, 0.7)';
     ctx.fillRect(x, y, Math.max(barW - 0.5, 1), barH);
   });
 
   // Y axis labels
-  ctx.fillStyle = '#5a554e';
+  ctx.fillStyle = '#9a9490';
   ctx.font = '9px "IBM Plex Mono"';
   ctx.textAlign = 'right';
   ctx.fillText(maxCount.toLocaleString(), 28, 16);
@@ -143,7 +143,7 @@ App.drawCompareChart = function() {
     var count = trustY[year] || 0;
     var barH = (count / maxCount) * (H - 28);
     var x = 30 + i * barW;
-    ctx.fillStyle = 'rgba(90, 138, 154, 0.5)';
+    ctx.fillStyle = 'rgba(41, 128, 185, 0.5)';
     ctx.fillRect(x, H - 14 - barH, Math.max(barW - 0.5, 1), barH);
   });
 
@@ -152,12 +152,12 @@ App.drawCompareChart = function() {
     var count = feeY[year] || 0;
     var barH = (count / maxCount) * (H - 28);
     var x = 30 + i * barW;
-    ctx.fillStyle = 'rgba(200, 164, 74, 0.7)';
+    ctx.fillStyle = 'rgba(212, 160, 23, 0.7)';
     ctx.fillRect(x + barW * 0.2, H - 14 - barH, Math.max(barW * 0.6, 1), barH);
   });
 
   // Draw forced fee line
-  ctx.strokeStyle = '#b85450';
+  ctx.strokeStyle = '#c0392b';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   var started = false;
@@ -172,7 +172,7 @@ App.drawCompareChart = function() {
   ctx.stroke();
 
   // Labels
-  ctx.fillStyle = '#5a554e';
+  ctx.fillStyle = '#9a9490';
   ctx.font = '9px "IBM Plex Mono"';
   ctx.textAlign = 'right';
   ctx.fillText(maxCount.toLocaleString(), 28, 16);
@@ -185,13 +185,13 @@ App.drawCompareChart = function() {
   // Legend
   ctx.font = '9px "IBM Plex Mono"';
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(90,138,154,0.8)'; ctx.fillRect(W - 120, 6, 8, 8);
-  ctx.fillStyle = '#8a8478'; ctx.fillText('Trust', W - 108, 14);
-  ctx.fillStyle = 'rgba(200,164,74,0.8)'; ctx.fillRect(W - 120, 18, 8, 8);
-  ctx.fillStyle = '#8a8478'; ctx.fillText('Fee', W - 108, 26);
-  ctx.strokeStyle = '#b85450'; ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(41,128,185,0.8)'; ctx.fillRect(W - 120, 6, 8, 8);
+  ctx.fillStyle = '#6a6460'; ctx.fillText('Trust', W - 108, 14);
+  ctx.fillStyle = 'rgba(212,160,23,0.8)'; ctx.fillRect(W - 120, 18, 8, 8);
+  ctx.fillStyle = '#6a6460'; ctx.fillText('Fee', W - 108, 26);
+  ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(W - 120, 34); ctx.lineTo(W - 112, 34); ctx.stroke();
-  ctx.fillStyle = '#8a8478'; ctx.fillText('Forced', W - 108, 38);
+  ctx.fillStyle = '#6a6460'; ctx.fillText('Forced', W - 108, 38);
 
   // Insight: find lag between trust peak and fee peak
   var trustPeak = 0, trustPeakYear = 0, feePeak = 0, feePeakYear = 0;
@@ -296,13 +296,11 @@ App.drawVelocityChart = function() {
 
     if (!tribeYears[p.preferred_name]) tribeYears[p.preferred_name] = { trust: [], fee: [], forced: [] };
 
-    var isFee = p.authority && p.authority.includes('Fee');
-    var isTrust = p.authority && (p.authority.includes('Trust') || p.authority.includes('Reissue'));
-    var isForced = p.forced_fee === 'True';
+    var type = App.classifyPatent(p.authority, p.forced_fee);
 
-    if (isForced) tribeYears[p.preferred_name].forced.push(year);
-    else if (isFee) tribeYears[p.preferred_name].fee.push(year);
-    else if (isTrust) tribeYears[p.preferred_name].trust.push(year);
+    if (type === 'forced') tribeYears[p.preferred_name].forced.push(year);
+    else if (type === 'fee') tribeYears[p.preferred_name].fee.push(year);
+    else if (type === 'trust') tribeYears[p.preferred_name].trust.push(year);
   });
 
   // Compute medians, filter to tribes with both trust and fee data
@@ -355,7 +353,7 @@ App.drawVelocityChart = function() {
     var y = i * rowH + 20;
 
     // Tribe label
-    ctx.fillStyle = '#8a8478';
+    ctx.fillStyle = '#6a6460';
     ctx.font = '9px "IBM Plex Mono"';
     ctx.textAlign = 'right';
     var displayName = d.tribe.length > 18 ? d.tribe.substring(0, 17) + '\u2026' : d.tribe;
@@ -365,7 +363,7 @@ App.drawVelocityChart = function() {
     var x1 = yearToX(d.medTrust);
     var x2 = yearToX(d.medFee);
 
-    ctx.strokeStyle = d.lag < 10 ? 'rgba(184,84,80,0.6)' : 'rgba(140,134,124,0.3)';
+    ctx.strokeStyle = d.lag < 10 ? 'rgba(192,57,43,0.6)' : 'rgba(154,148,144,0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x1, y);
@@ -373,25 +371,25 @@ App.drawVelocityChart = function() {
     ctx.stroke();
 
     // Trust dot
-    ctx.fillStyle = '#5a8a9a';
+    ctx.fillStyle = '#2980b9';
     ctx.beginPath();
     ctx.arc(x1, y, 3, 0, Math.PI * 2);
     ctx.fill();
 
     // Fee dot
-    ctx.fillStyle = d.forcedCount > 0 ? '#b85450' : '#c8a44a';
+    ctx.fillStyle = d.forcedCount > 0 ? '#c0392b' : '#d4a017';
     ctx.beginPath();
     ctx.arc(x2, y, 3, 0, Math.PI * 2);
     ctx.fill();
 
     // Lag label
-    ctx.fillStyle = d.lag < 10 ? '#b85450' : '#5a554e';
+    ctx.fillStyle = d.lag < 10 ? '#c0392b' : '#9a9490';
     ctx.textAlign = 'left';
     ctx.fillText((d.lag > 0 ? '+' : '') + d.lag.toFixed(0) + 'y', x2 + 6, y + 3);
   });
 
   // X axis
-  ctx.fillStyle = '#5a554e';
+  ctx.fillStyle = '#9a9490';
   ctx.textAlign = 'center';
   ctx.font = '9px "IBM Plex Mono"';
   var axisY = rows * rowH + 24;
@@ -436,7 +434,7 @@ App.drawCountyBars = function() {
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">' +
         '<span style="width:120px;text-align:right;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + name + '">' + name + '</span>' +
         '<div style="flex:1;height:10px;background:var(--bg-inset);border-radius:1px;overflow:hidden;">' +
-          '<div style="width:' + pct + '%;height:100%;background:rgba(200,164,74,0.5);border-radius:1px;"></div>' +
+          '<div style="width:' + pct + '%;height:100%;background:rgba(212,160,23,0.5);border-radius:1px;"></div>' +
         '</div>' +
         '<span style="width:48px;text-align:right;color:var(--text-faint);font-size:10px;font-variant-numeric:tabular-nums;">' + count.toLocaleString() + '</span>' +
       '</div>';

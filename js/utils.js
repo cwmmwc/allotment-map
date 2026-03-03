@@ -21,3 +21,13 @@ App.setLoad = function(pct, msg) {
   document.getElementById('load-fill').style.width = pct + '%';
   document.getElementById('load-msg').textContent = msg;
 };
+
+App.classifyPatent = function(authority, forced_fee) {
+  var isForced = forced_fee === 'True';
+  if (isForced) return 'forced';
+  if (!authority) return 'other';
+  if (authority.includes('Fee')) return 'fee';
+  if (authority.includes('Trust') || authority.includes('Reissue')) return 'trust';
+  if (authority.includes('Allotment') || authority.includes('General')) return 'trust';
+  return 'other';
+};

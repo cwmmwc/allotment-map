@@ -11,37 +11,91 @@ App.initMap = function() {
     minZoom: 3
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
+  // ESRI Light Gray basemap
+  L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16
   }).addTo(App.map);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, pane: 'overlayPane'
+  L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16, pane: 'overlayPane'
   }).addTo(App.map);
+
+  // Custom heat pane
+  App.map.createPane('heatPane');
+  App.map.getPane('heatPane').style.zIndex = 350;
+  App.map.getPane('heatPane').style.opacity = 0.6;
 
   App.heatLayer = L.heatLayer([], {
-    radius: 18,
-    blur: 22,
-    maxZoom: 10,
-    gradient: {0.1: '#1a1a4a', 0.3: '#3a5a8a', 0.5: '#5a9a6a', 0.7: '#c8a44a', 0.9: '#c85a4a', 1.0: '#f0e0c0'}
+    radius: 10,
+    blur: 4,
+    maxZoom: 14,
+    pane: 'heatPane',
+    gradient: {
+      0: 'rgba(0,0,0,0)',
+      0.2: '#fef0d9',
+      0.4: '#fdcc8a',
+      0.6: '#fc8d59',
+      0.8: '#e34a33',
+      1.0: '#b30000'
+    }
   }).addTo(App.map);
 
   App.pointLayer = L.layerGroup().addTo(App.map);
+  App.parcelLayer = L.layerGroup().addTo(App.map);
+
+  // Re-render on zoom change to toggle parcels vs markers
+  App.map.on('zoomend', function() {
+    var newZoom = App.map.getZoom();
+    if (App.lastZoom !== null && App.currentData.length > 0) {
+      var crossedThreshold = (App.lastZoom < 9 && newZoom >= 9) || (App.lastZoom >= 9 && newZoom < 9);
+      if (crossedThreshold) {
+        App.renderMap(false);
+      }
+    }
+    App.lastZoom = newZoom;
+    App.updateHeatRadius();
+  });
+
+  App.lastZoom = App.map.getZoom();
 };
 
-App.renderMap = function() {
+// Compute heatmap radius as 0.4 miles in pixels at current zoom
+App.updateHeatRadius = function() {
+  if (!App.heatLayer) return;
+  var zoom = App.map.getZoom();
+  // 0.4 miles in degrees latitude ≈ 0.4/69
+  var degPerMile = 1 / 69;
+  var milesRadius = 0.4;
+  var degRadius = milesRadius * degPerMile;
+  // pixels per degree at this zoom
+  var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
+  var radiusPx = Math.max(2, Math.round(degRadius * pixPerDeg));
+  var blurPx = Math.max(1, Math.round(radiusPx * 0.4));
+  App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx });
+};
+
+App.renderMap = function(fitBounds) {
   App.pointLayer.clearLayers();
+  App.parcelLayer.clearLayers();
   var heatPoints = [];
   var showHeat = document.getElementById('chk-heatmap').checked;
   var showPoints = document.getElementById('chk-points').checked;
   var highlightForced = document.getElementById('chk-forced-highlight').checked;
+  var zoom = App.map.getZoom();
+  var showParcels = zoom >= 9;
 
   var feeCount = 0, trustCount = 0, forcedCount = 0;
 
   App.currentData.forEach(function(f) {
     var p = f.properties;
-    var lat, lng;
+    var type = App.classifyPatent(p.authority, p.forced_fee);
 
+    if (type === 'forced') forcedCount++;
+    else if (type === 'fee') feeCount++;
+    else if (type === 'trust') trustCount++;
+
+    // Compute centroid for heatmap and circle markers
+    var lat, lng;
     if (f.geometry.type === 'Point') {
       lng = f.geometry.coordinates[0];
       lat = f.geometry.coordinates[1];
@@ -52,35 +106,53 @@ App.renderMap = function() {
     }
     if (!lat || !lng) return;
 
-    var isForced = p.forced_fee === 'True';
-    var isFee = p.authority && p.authority.includes('Fee');
-    var isTrust = p.authority && (p.authority.includes('Trust') || p.authority.includes('Reissue'));
-
-    if (isForced) forcedCount++;
-    else if (isFee) feeCount++;
-    else if (isTrust) trustCount++;
-
-    // Heatmap point (with weight)
-    if (showHeat) {
-      heatPoints.push([lat, lng, isForced ? 1.5 : 1.0]);
+    // Heatmap: only fee and forced patents
+    if (showHeat && (type === 'fee' || type === 'forced')) {
+      heatPoints.push([lat, lng, type === 'forced' ? 1.0 : 0.5]);
     }
 
-    // Circle markers
-    if (showPoints) {
-      var color, radius, opacity;
-      if (isForced && highlightForced) {
-        color = '#b85450'; radius = 4; opacity = 0.8;
-      } else if (isFee) {
-        color = '#c8a44a'; radius = 3; opacity = 0.5;
-      } else if (isTrust) {
-        color = '#5a8a9a'; radius = 2.5; opacity = 0.4;
+    // Parcel polygons at zoom >= 9
+    if (showPoints && showParcels && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
+      var fillColor, borderColor, fillOpacity;
+      if (type === 'forced') {
+        fillColor = '#c0392b'; borderColor = '#a93226'; fillOpacity = 0.5;
+      } else if (type === 'fee') {
+        fillColor = '#d4a017'; borderColor = '#b8860b'; fillOpacity = 0.4;
+      } else if (type === 'trust') {
+        fillColor = '#2980b9'; borderColor = '#1a6fa0'; fillOpacity = 0.35;
       } else {
-        color = '#8a8478'; radius = 2; opacity = 0.3;
+        fillColor = '#9a9490'; borderColor = '#6a6460'; fillOpacity = 0.25;
+      }
+
+      var parcel = L.geoJSON(f.geometry, {
+        style: {
+          fillColor: fillColor,
+          color: borderColor,
+          weight: 1,
+          fillOpacity: fillOpacity,
+          opacity: 0.7
+        }
+      });
+      parcel.bindPopup(function() { return App.makePopup(p); });
+      App.parcelLayer.addLayer(parcel);
+    }
+
+    // Circle markers at zoom < 9 (or as fallback for Point geometry)
+    if (showPoints && (!showParcels || f.geometry.type === 'Point')) {
+      var color, radius, opacity;
+      if (type === 'forced' && highlightForced) {
+        color = '#c0392b'; radius = 4; opacity = 0.8;
+      } else if (type === 'fee') {
+        color = '#d4a017'; radius = 3; opacity = 0.5;
+      } else if (type === 'trust') {
+        color = '#2980b9'; radius = 2.5; opacity = 0.4;
+      } else {
+        color = '#9a9490'; radius = 2; opacity = 0.3;
       }
 
       var marker = L.circleMarker([lat, lng], {
         radius: radius, fillColor: color, fillOpacity: opacity,
-        color: 'rgba(255,255,255,0.08)', weight: 0.5
+        color: 'rgba(0,0,0,0.15)', weight: 0.5
       });
 
       marker.bindPopup(function() { return App.makePopup(p); });
@@ -88,29 +160,52 @@ App.renderMap = function() {
     }
   });
 
+  // Dynamic max scaling for heatmap
+  if (heatPoints.length > 0) {
+    var dynamicMax = Math.max(1.0, Math.min(3.0, heatPoints.length / 500));
+    App.heatLayer.setOptions({ max: dynamicMax });
+  }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
+  App.updateHeatRadius();
 
   // Legend counts
   document.getElementById('leg-trust').textContent = trustCount.toLocaleString();
   document.getElementById('leg-fee').textContent = feeCount.toLocaleString();
   document.getElementById('leg-forced').textContent = forcedCount.toLocaleString();
 
-  // Fit bounds
-  if (heatPoints.length > 0) {
-    var lats = heatPoints.map(function(p) { return p[0]; });
-    var lngs = heatPoints.map(function(p) { return p[1]; });
-    App.map.fitBounds([[Math.min.apply(null, lats), Math.min.apply(null, lngs)], [Math.max.apply(null, lats), Math.max.apply(null, lngs)]], { padding: [30, 30] });
+  // Fit bounds only on initial load, not on zoom-triggered re-renders
+  if (fitBounds !== false) {
+    var allLats = [], allLngs = [];
+    App.currentData.forEach(function(f) {
+      var lat, lng;
+      if (f.geometry.type === 'Point') {
+        lng = f.geometry.coordinates[0];
+        lat = f.geometry.coordinates[1];
+      } else if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') {
+        var coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
+        lng = coords.reduce(function(s, c) { return s + c[0]; }, 0) / coords.length;
+        lat = coords.reduce(function(s, c) { return s + c[1]; }, 0) / coords.length;
+      }
+      if (lat && lng) { allLats.push(lat); allLngs.push(lng); }
+    });
+
+    if (allLats.length > 0) {
+      App.map.fitBounds([
+        [Math.min.apply(null, allLats), Math.min.apply(null, allLngs)],
+        [Math.max.apply(null, allLats), Math.max.apply(null, allLngs)]
+      ], { padding: [30, 30] });
+    }
   }
 
-  document.getElementById('map-stat').innerHTML = '<strong>' + App.currentData.length.toLocaleString() + '</strong> patents displayed';
+  var modeLabel = showParcels ? 'parcels' : 'markers';
+  document.getElementById('map-stat').innerHTML = '<strong>' + App.currentData.length.toLocaleString() + '</strong> patents displayed (' + modeLabel + ')';
 };
 
 App.makePopup = function(p) {
   var date = p.signature_date ? new Date(p.signature_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : '\u2014';
-  var isFee = p.authority && p.authority.includes('Fee');
-  var isForced = p.forced_fee === 'True';
-  var tagClass = isForced ? 'forced' : (isFee ? 'fee' : 'trust');
-  var tagText = isForced ? 'Forced Fee' : (isFee ? 'Fee Patent' : 'Trust Patent');
+  var type = App.classifyPatent(p.authority, p.forced_fee);
+  var tagClass = type === 'forced' ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
+  var tagText = type === 'forced' ? 'Forced Fee' : (type === 'fee' ? 'Fee Patent' : 'Trust Patent');
 
   return '<div>' +
     '<div class="popup-name">' + (p.full_name || 'Unknown') + '</div>' +
