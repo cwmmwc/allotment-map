@@ -52,7 +52,11 @@ App.runAnalysis = async function() {
     clauses.push("signature_date >= timestamp '" + yearStart + "-01-01' AND signature_date < timestamp '" + (yearEnd + 1) + "-01-01'");
   }
   if (state) clauses.push("state = '" + state + "'");
-  if (App.selectedTribe) clauses.push("preferred_name = '" + App.selectedTribe.replace(/'/g, "''") + "'");
+  if (App.selectedTribes.length === 1) {
+    clauses.push("preferred_name = '" + App.selectedTribes[0].replace(/'/g, "''") + "'");
+  } else if (App.selectedTribes.length > 1) {
+    clauses.push("preferred_name IN (" + App.selectedTribes.map(function(t) { return "'" + t.replace(/'/g, "''") + "'"; }).join(',') + ")");
+  }
 
   var where = clauses.join(' AND ');
 
@@ -122,6 +126,7 @@ App.runAnalysis = async function() {
   // Render everything
   App.renderMap();
   App.analyzePatterns();
+  App.renderCompare();
 
   // Build timeline index for cumulative mode
   App.buildTimelineIndex();
@@ -138,7 +143,11 @@ App.loadComparisonData = async function(yearStart, yearEnd, state) {
     timeClauses.push("signature_date >= timestamp '" + yearStart + "-01-01' AND signature_date < timestamp '" + (yearEnd + 1) + "-01-01'");
   }
   if (state) timeClauses.push("state = '" + state + "'");
-  if (App.selectedTribe) timeClauses.push("preferred_name = '" + App.selectedTribe.replace(/'/g, "''") + "'");
+  if (App.selectedTribes.length === 1) {
+    timeClauses.push("preferred_name = '" + App.selectedTribes[0].replace(/'/g, "''") + "'");
+  } else if (App.selectedTribes.length > 1) {
+    timeClauses.push("preferred_name IN (" + App.selectedTribes.map(function(t) { return "'" + t.replace(/'/g, "''") + "'"; }).join(',') + ")");
+  }
 
   var extraWhere = timeClauses.length ? ' AND ' + timeClauses.join(' AND ') : '';
 

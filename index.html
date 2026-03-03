@@ -21,9 +21,8 @@
   <div class="header">
     <div class="header-title">Allotment Patent Patterns</div>
     <div class="header-tabs">
-      <button class="header-tab active" data-view="heatmap">Density</button>
-      <button class="header-tab" data-view="clusters">Clusters</button>
-      <button class="header-tab" data-view="compare">Compare</button>
+      <button class="header-tab active" data-view="heatmap">Analysis</button>
+      <button class="header-tab" data-view="compare">Compare Tribes</button>
     </div>
     <div class="header-spacer"></div>
     <div class="header-status" id="status">—</div>
@@ -67,8 +66,9 @@
     </div>
 
     <div class="ctrl-section">
-      <div class="ctrl-label">Tribe</div>
+      <div class="ctrl-label">Tribe <span style="font-size:9px;color:var(--text-faint);text-transform:none;letter-spacing:0;">(select multiple)</span></div>
       <input class="ctrl-input" id="tribe-search" placeholder="Search tribes…" />
+      <button class="ctrl-btn" id="tribe-clear" style="display:none;width:100%;margin-top:4px;">Clear selection</button>
       <div class="tribe-selector" id="tribe-list"></div>
     </div>
 
@@ -115,6 +115,15 @@
       <canvas id="tl-chart" height="40"></canvas>
       <div class="timeline-thumb" id="tl-thumb"></div>
       <input type="range" id="tl-slider" class="timeline-slider" min="1850" max="1975" value="1850" step="1" />
+    </div>
+  </div>
+
+  <!-- Right: Compare (hidden by default) -->
+  <div class="analysis" id="compare-panel" style="display:none;">
+    <div class="analysis-section">
+      <div class="analysis-title">Tribe Comparison</div>
+      <div class="analysis-subtitle">Side-by-side breakdown of loaded tribes</div>
+      <div id="compare-content"><div class="insight">Run an analysis to compare tribes.</div></div>
     </div>
   </div>
 

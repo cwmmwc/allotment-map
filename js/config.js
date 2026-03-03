@@ -21,7 +21,7 @@ window.App = {
   currentData: [],
   tribeMap: {},
   stateMap: {},
-  selectedTribe: null,
+  selectedTribes: [],
   analysisCache: {},
   lastZoom: null,
 
