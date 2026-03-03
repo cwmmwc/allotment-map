@@ -25,6 +25,7 @@ App.initMap = function() {
   App.heatLayer = L.heatLayer([], {
     radius: 20,
     blur: 12,
+    maxZoom: 6,
     gradient: {
       0: 'rgba(0,0,0,0)',
       0.2: '#fef0d9',
@@ -165,7 +166,7 @@ App.renderMap = function(fitBounds) {
 
   // Dynamic max scaling — sqrt-based so density variation is visible, not saturated
   if (heatPoints.length > 0) {
-    var dynamicMax = Math.max(1.0, Math.sqrt(heatPoints.length));
+    var dynamicMax = Math.max(2, Math.sqrt(heatPoints.length) * 0.3);
     App.heatLayer.setOptions({ max: dynamicMax });
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
