@@ -62,13 +62,13 @@ App.initMap = function() {
   App.lastZoom = App.map.getZoom();
 };
 
-// Rebuild heatmap radius as fixed geographic distance (~0.4 miles) in pixels
+// Rebuild heatmap radius as fixed geographic distance (~2 miles) in pixels
 App.updateHeatRadius = function() {
   if (!App.heatLayer) return;
   var zoom = App.map.getZoom();
   var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
-  var radiusPx = Math.max(5, Math.min(35, Math.round((0.4 / 69) * pixPerDeg)));
-  var blurPx = Math.max(3, Math.round(radiusPx * 0.4));
+  var radiusPx = Math.max(15, Math.min(50, Math.round((2 / 69) * pixPerDeg)));
+  var blurPx = Math.max(5, Math.round(radiusPx * 0.4));
 
   // maxZoom = current zoom + 1 disables leaflet.heat internal scaling
   App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx, maxZoom: zoom + 1 });
