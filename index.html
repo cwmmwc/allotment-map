@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allotment Patent Pattern Analysis</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@300;400;500&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div id="loading">
+  <h2>Loading Patent Data…</h2>
+  <div id="load-bar"><div id="load-fill"></div></div>
+  <div id="load-msg">Connecting…</div>
+</div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">Allotment Patent Patterns</div>
+    <div class="header-tabs">
+      <button class="header-tab active" data-view="heatmap">Density</button>
+      <button class="header-tab" data-view="clusters">Clusters</button>
+      <button class="header-tab" data-view="compare">Compare</button>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-status" id="status">—</div>
+  </div>
+
+  <!-- Left: Controls -->
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-label">Patent Category</div>
+      <select class="ctrl-select" id="sel-category">
+        <option value="fee">Fee Patents (81,249)</option>
+        <option value="trust">Trust Patents (78,421)</option>
+        <option value="forced">Forced Fee Only (~15,045)</option>
+        <option value="all">All Patents (239,845)</option>
+      </select>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Time Range</div>
+      <div class="ctrl-row">
+        <select class="ctrl-select" id="sel-year-start"></select>
+        <span style="color:var(--text-faint);line-height:28px;">to</span>
+        <select class="ctrl-select" id="sel-year-end"></select>
+      </div>
+      <div class="ctrl-row" style="flex-wrap:wrap;gap:4px;">
+        <button class="ctrl-btn" onclick="setTimePreset(1887,1906)">Dawes Era</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1906,1920)">Burke Act</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1917,1921)">Declaration</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1921,1934)">1921–IRA</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1934,1953)">IRA Era</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1953,1960)">Termination</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1854,1960)">All</button>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">State</div>
+      <select class="ctrl-select" id="sel-state">
+        <option value="">All States</option>
+      </select>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Tribe</div>
+      <input class="ctrl-input" id="tribe-search" placeholder="Search tribes…" />
+      <div class="tribe-selector" id="tribe-list"></div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Map Display</div>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-heatmap" checked /> Show density heatmap</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-points" checked /> Show individual patents</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-forced-highlight" checked /> Highlight forced fee</label>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Legend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--trust-color)"></div>Trust Patent<span class="legend-count" id="leg-trust">—</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--fee-color)"></div>Fee Patent<span class="legend-count" id="leg-fee">—</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--forced-color)"></div>Forced Fee<span class="legend-count" id="leg-forced">—</span></div>
+    </div>
+
+    <div class="ctrl-section">
+      <button class="ctrl-btn primary" onclick="runAnalysis()" style="width:100%">▶ Run Analysis</button>
+    </div>
+  </div>
+
+  <!-- Center: Map -->
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="map-overlay-stat" id="map-stat">Select filters and click <strong>Run Analysis</strong> to load patent data.</div>
+  </div>
+
+  <!-- Right: Analysis -->
+  <div class="analysis" id="analysis-panel">
+    <div class="analysis-section">
+      <div class="analysis-subtitle">Summary</div>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="val" id="s-total">—</div><div class="lbl">Patents loaded</div></div>
+        <div class="stat-card"><div class="val" id="s-tribes">—</div><div class="lbl">Tribes</div></div>
+        <div class="stat-card"><div class="val" id="s-states">—</div><div class="lbl">States</div></div>
+        <div class="stat-card"><div class="val" id="s-span">—</div><div class="lbl">Year span</div></div>
+      </div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Temporal Distribution</div>
+      <div class="analysis-subtitle">Patents per year — are there waves?</div>
+      <div class="chart-container"><canvas id="chart-temporal" height="140"></canvas></div>
+      <div class="insight" id="insight-temporal">Run an analysis to see temporal patterns.</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Trust vs. Fee Timeline</div>
+      <div class="analysis-subtitle">When did each type peak?</div>
+      <div class="chart-container"><canvas id="chart-compare" height="140"></canvas></div>
+      <div class="insight" id="insight-compare">—</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Spatial Clustering</div>
+      <div class="analysis-subtitle">Are conversions random or clustered?</div>
+      <div class="insight" id="insight-spatial">Run analysis with data loaded to compute spatial statistics.</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Conversion Velocity</div>
+      <div class="analysis-subtitle">How quickly did fee patents follow trust patents by tribe?</div>
+      <div class="chart-container"><canvas id="chart-velocity" height="160"></canvas></div>
+      <div class="insight" id="insight-velocity">—</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Top Counties</div>
+      <div class="analysis-subtitle">Where is activity most concentrated?</div>
+      <div id="county-bars"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CDN dependencies -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<!-- App modules (order matters) -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/map.js"></script>
+<script src="js/controls.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
