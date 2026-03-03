@@ -20,16 +20,12 @@ App.initMap = function() {
     maxZoom: 16, pane: 'overlayPane'
   }).addTo(App.map);
 
-  // Custom heat pane
-  App.map.createPane('heatPane');
-  App.map.getPane('heatPane').style.zIndex = 350;
-  App.map.getPane('heatPane').style.opacity = 0.6;
-
+  // Heatmap layer — leaflet.heat 0.2.0 always renders on overlayPane
+  // so we style its canvas directly after init
   App.heatLayer = L.heatLayer([], {
-    radius: 10,
-    blur: 4,
-    maxZoom: 14,
-    pane: 'heatPane',
+    radius: 18,
+    blur: 8,
+    maxZoom: 8,
     gradient: {
       0: 'rgba(0,0,0,0)',
       0.2: '#fef0d9',
@@ -40,6 +36,12 @@ App.initMap = function() {
     }
   }).addTo(App.map);
 
+  // Apply opacity and z-index to the heatmap canvas
+  if (App.heatLayer._canvas) {
+    App.heatLayer._canvas.style.opacity = '0.6';
+    App.heatLayer._canvas.style.zIndex = '350';
+  }
+
   App.pointLayer = L.layerGroup().addTo(App.map);
   App.parcelLayer = L.layerGroup().addTo(App.map);
 
@@ -49,7 +51,11 @@ App.initMap = function() {
     if (App.lastZoom !== null && App.currentData.length > 0) {
       var crossedThreshold = (App.lastZoom < 9 && newZoom >= 9) || (App.lastZoom >= 9 && newZoom < 9);
       if (crossedThreshold) {
-        App.renderMap(false);
+        if (App.timelineMode && App.timelineYear !== null) {
+          App.setTimelineYear(App.timelineYear);
+        } else {
+          App.renderMap(false);
+        }
       }
     }
     App.lastZoom = newZoom;
@@ -69,8 +75,8 @@ App.updateHeatRadius = function() {
   var degRadius = milesRadius * degPerMile;
   // pixels per degree at this zoom
   var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
-  var radiusPx = Math.max(2, Math.round(degRadius * pixPerDeg));
-  var blurPx = Math.max(1, Math.round(radiusPx * 0.4));
+  var radiusPx = Math.max(15, Math.round(degRadius * pixPerDeg));
+  var blurPx = Math.max(6, Math.round(radiusPx * 0.4));
   App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx });
 };
 
@@ -167,6 +173,11 @@ App.renderMap = function(fitBounds) {
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
   App.updateHeatRadius();
+
+  // Ensure heatmap canvas has correct opacity (leaflet.heat 0.2.0 ignores pane option)
+  if (App.heatLayer._canvas) {
+    App.heatLayer._canvas.style.opacity = '0.6';
+  }
 
   // Legend counts
   document.getElementById('leg-trust').textContent = trustCount.toLocaleString();

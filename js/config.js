@@ -22,5 +22,11 @@ window.App = {
   stateMap: {},
   selectedTribe: null,
   analysisCache: {},
-  lastZoom: null
+  lastZoom: null,
+
+  // Timeline state
+  timelineMode: false,
+  timelineIndex: [],
+  timelineYear: null,
+  timelineInterval: null
 };

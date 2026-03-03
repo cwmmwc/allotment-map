@@ -94,6 +94,13 @@ App.runAnalysis = async function() {
   // Render everything
   App.renderMap();
   App.analyzePatterns();
+
+  // Build timeline index for cumulative mode
+  App.buildTimelineIndex();
+  if (App.timelineMode && App.timelineIndex.length > 0) {
+    App.drawTimelineChart();
+    App.setTimelineYear(App.timelineIndex[0]._tlYear);
+  }
 };
 
 App.loadComparisonData = async function(yearStart, yearEnd, state) {

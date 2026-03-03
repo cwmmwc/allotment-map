@@ -22,6 +22,14 @@ App.initControls = function() {
   App.renderTribes();
   document.getElementById('tribe-search').addEventListener('input', App.renderTribes);
 
+  // Timeline checkbox
+  document.getElementById('chk-timeline').addEventListener('change', function() {
+    App.toggleTimeline(this.checked);
+  });
+
+  // Timeline track interactions
+  App.initTimelineTrack();
+
   // Tab switching
   document.querySelectorAll('.header-tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
