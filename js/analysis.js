@@ -201,13 +201,26 @@ App.drawCompareChart = function() {
     if ((feeY[yr] || 0) > feePeak) { feePeak = feeY[yr]; feePeakYear = yr; }
   }
 
+  if (trustPeakYear === 0 && feePeakYear === 0) {
+    document.getElementById('insight-compare').innerHTML = 'Not enough year-by-year data to determine peak timing.';
+    return;
+  }
+
   var lag = feePeakYear - trustPeakYear;
-  document.getElementById('insight-compare').innerHTML =
-    'Trust patents peaked in <strong class="highlight">' + trustPeakYear + '</strong>, ' +
-    'fee patents peaked in <strong class="highlight">' + feePeakYear + '</strong>' +
-    (lag > 0 ? ' \u2014 a <strong>' + lag + '-year lag</strong> between allotment and conversion to alienable title.' : '.') +
-    (lag >= 15 ? ' This long gap suggests trust periods were often being honored.' : '') +
-    (lag > 0 && lag < 10 ? ' <span class="warn">This short gap suggests rapid, possibly coerced conversion.</span>' : '');
+  var parts = [];
+  if (trustPeakYear > 0) parts.push('Trust patents peaked in <strong class="highlight">' + trustPeakYear + '</strong>');
+  if (feePeakYear > 0) parts.push('fee patents peaked in <strong class="highlight">' + feePeakYear + '</strong>');
+  var insight = parts.join(', ');
+
+  if (trustPeakYear > 0 && feePeakYear > 0 && lag > 0) {
+    insight += ' \u2014 a <strong>' + lag + '-year lag</strong> between allotment and conversion to alienable title.';
+    if (lag >= 15) insight += ' This long gap suggests trust periods were often being honored.';
+    else if (lag < 10) insight += ' <span class="warn">This short gap suggests rapid, possibly coerced conversion.</span>';
+  } else {
+    insight += '.';
+  }
+
+  document.getElementById('insight-compare').innerHTML = insight;
 };
 
 App.analyzeSpatialClustering = function() {
