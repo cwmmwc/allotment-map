@@ -65,7 +65,7 @@ App.initMap = function() {
   App.lastZoom = App.map.getZoom();
 };
 
-// Heatmap radius: geographic (0.4 mi) when zoomed in, small pixel size when zoomed out
+// Heatmap radius and intensity scaling per zoom level
 App.updateHeatRadius = function() {
   if (!App.heatLayer) return;
   var zoom = App.map.getZoom();
@@ -74,7 +74,15 @@ App.updateHeatRadius = function() {
   // Floor of 18px keeps points visible at low zoom without bloating
   var radiusPx = Math.max(18, Math.round(geoRadiusPx));
   var blurPx = Math.round(radiusPx * 0.5);
-  App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx });
+
+  // Scale max down as zoom increases — fewer points visible, need lower
+  // threshold to stay visible. Base max set in renderMap, reduce by ~half
+  // per 3 zoom levels above 6.
+  var baseMax = App._heatBaseMax || 2;
+  var zoomFactor = Math.pow(0.5, Math.max(0, zoom - 6) / 3);
+  var max = Math.max(1, baseMax * zoomFactor);
+
+  App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx, max: max });
 };
 
 App.renderMap = function(fitBounds) {
@@ -166,8 +174,7 @@ App.renderMap = function(fitBounds) {
 
   // Dynamic max scaling — sqrt-based so density variation is visible, not saturated
   if (heatPoints.length > 0) {
-    var dynamicMax = Math.max(2, Math.sqrt(heatPoints.length) * 0.3);
-    App.heatLayer.setOptions({ max: dynamicMax });
+    App._heatBaseMax = Math.max(2, Math.sqrt(heatPoints.length) * 0.3);
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
   App.updateHeatRadius();
