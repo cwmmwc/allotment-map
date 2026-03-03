@@ -69,9 +69,10 @@ App.drawTimelineChart = function() {
     if (y < minYear) minYear = y;
     if (y > maxYear) maxYear = y;
     if (!bins[y]) bins[y] = { trust: 0, fee: 0, forced: 0 };
-    var type = App.classifyPatent(f.properties.authority, f.properties.forced_fee);
-    if (type === 'forced') bins[y].forced++;
-    else if (type === 'fee') bins[y].fee++;
+    var type = App.classifyPatent(f.properties.authority);
+    var isForced = f.properties.forced_fee === 'True';
+    if (isForced) bins[y].forced++;
+    if (type === 'fee') bins[y].fee++;
     else if (type === 'trust') bins[y].trust++;
   });
 
@@ -178,9 +179,9 @@ App.setTimelineYear = function(year) {
   // Update stats
   var trustCount = 0, feeCount = 0, forcedCount = 0;
   filtered.forEach(function(f) {
-    var type = App.classifyPatent(f.properties.authority, f.properties.forced_fee);
-    if (type === 'forced') forcedCount++;
-    else if (type === 'fee') feeCount++;
+    var type = App.classifyPatent(f.properties.authority);
+    if (f.properties.forced_fee === 'True') forcedCount++;
+    if (type === 'fee') feeCount++;
     else if (type === 'trust') trustCount++;
   });
 

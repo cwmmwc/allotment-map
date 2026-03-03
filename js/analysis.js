@@ -296,10 +296,10 @@ App.drawVelocityChart = function() {
 
     if (!tribeYears[p.preferred_name]) tribeYears[p.preferred_name] = { trust: [], fee: [], forced: [] };
 
-    var type = App.classifyPatent(p.authority, p.forced_fee);
+    var type = App.classifyPatent(p.authority);
 
-    if (type === 'forced') tribeYears[p.preferred_name].forced.push(year);
-    else if (type === 'fee') tribeYears[p.preferred_name].fee.push(year);
+    if (p.forced_fee === 'True') tribeYears[p.preferred_name].forced.push(year);
+    if (type === 'fee') tribeYears[p.preferred_name].fee.push(year);
     else if (type === 'trust') tribeYears[p.preferred_name].trust.push(year);
   });
 

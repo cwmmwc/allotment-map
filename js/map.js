@@ -94,10 +94,11 @@ App.renderMap = function(fitBounds) {
 
   App.currentData.forEach(function(f) {
     var p = f.properties;
-    var type = App.classifyPatent(p.authority, p.forced_fee);
+    var type = App.classifyPatent(p.authority);
+    var isForced = p.forced_fee === 'True';
 
-    if (type === 'forced') forcedCount++;
-    else if (type === 'fee') feeCount++;
+    if (isForced) forcedCount++;
+    if (type === 'fee') feeCount++;
     else if (type === 'trust') trustCount++;
 
     // Compute centroid for heatmap and circle markers
@@ -112,15 +113,15 @@ App.renderMap = function(fitBounds) {
     }
     if (!lat || !lng) return;
 
-    // Heatmap: only fee and forced patents
-    if (showHeat && (type === 'fee' || type === 'forced')) {
-      heatPoints.push([lat, lng, type === 'forced' ? 1.0 : 0.5]);
+    // Heatmap: only fee patents (forced is a subset of fee)
+    if (showHeat && type === 'fee') {
+      heatPoints.push([lat, lng, isForced ? 1.0 : 0.5]);
     }
 
     // Parcel polygons at zoom >= 9
     if (showPoints && showParcels && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
       var fillColor, borderColor, fillOpacity;
-      if (type === 'forced') {
+      if (isForced && highlightForced) {
         fillColor = '#c0392b'; borderColor = '#a93226'; fillOpacity = 0.5;
       } else if (type === 'fee') {
         fillColor = '#d4a017'; borderColor = '#b8860b'; fillOpacity = 0.4;
@@ -146,7 +147,7 @@ App.renderMap = function(fitBounds) {
     // Circle markers at zoom < 9 (or as fallback for Point geometry)
     if (showPoints && (!showParcels || f.geometry.type === 'Point')) {
       var color, radius, opacity;
-      if (type === 'forced' && highlightForced) {
+      if (isForced && highlightForced) {
         color = '#c0392b'; radius = 4; opacity = 0.8;
       } else if (type === 'fee') {
         color = '#d4a017'; radius = 3; opacity = 0.5;
@@ -214,9 +215,10 @@ App.renderMap = function(fitBounds) {
 
 App.makePopup = function(p) {
   var date = p.signature_date ? new Date(p.signature_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : '\u2014';
-  var type = App.classifyPatent(p.authority, p.forced_fee);
-  var tagClass = type === 'forced' ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
-  var tagText = type === 'forced' ? 'Forced Fee' : (type === 'fee' ? 'Fee Patent' : 'Trust Patent');
+  var type = App.classifyPatent(p.authority);
+  var isForced = p.forced_fee === 'True';
+  var tagClass = isForced ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
+  var tagText = isForced ? 'Forced Fee' : (type === 'fee' ? 'Fee Patent' : 'Trust Patent');
 
   return '<div>' +
     '<div class="popup-name">' + (p.full_name || 'Unknown') + '</div>' +

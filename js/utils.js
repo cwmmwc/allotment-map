@@ -22,9 +22,9 @@ App.setLoad = function(pct, msg) {
   document.getElementById('load-msg').textContent = msg;
 };
 
-App.classifyPatent = function(authority, forced_fee) {
-  var isForced = forced_fee === 'True';
-  if (isForced) return 'forced';
+// Returns 'fee', 'trust', or 'other' based on authority field.
+// forced_fee is a separate flag — check it directly, not via this function.
+App.classifyPatent = function(authority) {
   if (!authority) return 'other';
   if (authority.includes('Fee')) return 'fee';
   if (authority.includes('Trust') || authority.includes('Reissue')) return 'trust';
