@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allotment Patent Pattern Analysis</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@300;400;500&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0e0c;
+  --bg-raised: #1a1816;
+  --bg-inset: #0a0908;
+  --border: #2a2724;
+  --border-focus: #4a4540;
+  --text: #d4cec4;
+  --text-dim: #8a8478;
+  --text-faint: #5a554e;
+  --amber: #c8a44a;
+  --amber-dim: #9a7e38;
+  --red: #b85450;
+  --red-dim: #8a3e3a;
+  --blue: #5a8a9a;
+  --blue-dim: #3a6a7a;
+  --green: #5a8a5e;
+  --green-dim: #3a6a3e;
+  --trust-color: #5a8a9a;
+  --fee-color: #c8a44a;
+  --forced-color: #b85450;
+  --serif: 'Source Serif 4', 'Newsreader', Georgia, serif;
+  --mono: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ── Layout ── */
+.app {
+  display: grid;
+  grid-template-columns: 340px 1fr 380px;
+  grid-template-rows: 42px 1fr;
+  height: 100vh;
+}
+
+/* ── Header ── */
+.header {
+  grid-column: 1 / -1;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 24px;
+}
+
+.header-title {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.header-tabs {
+  display: flex;
+  gap: 2px;
+  height: 100%;
+  align-items: stretch;
+}
+
+.header-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0 14px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.header-tab:hover { color: var(--text); }
+.header-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+.header-spacer { flex: 1; }
+
+.header-status {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* ── Left Panel: Controls ── */
+.controls {
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.ctrl-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ctrl-label {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+
+.ctrl-select {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  margin-bottom: 6px;
+}
+
+.ctrl-select:focus { border-color: var(--border-focus); }
+
+.ctrl-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ctrl-row .ctrl-select { flex: 1; }
+
+.ctrl-input {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+}
+
+.ctrl-input:focus { border-color: var(--border-focus); }
+
+.ctrl-btn {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 5px 12px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ctrl-btn:hover { background: var(--border); color: var(--text); }
+.ctrl-btn.primary { border-color: var(--amber-dim); color: var(--amber); }
+.ctrl-btn.primary:hover { background: var(--amber-dim); color: var(--bg); }
+
+.ctrl-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ctrl-checkbox input { accent-color: var(--amber); }
+
+/* Legend */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-count {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tribe selector list */
+.tribe-selector {
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  margin-top: 6px;
+}
+
+.tribe-opt {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+
+.tribe-opt:hover { background: var(--bg-inset); }
+.tribe-opt.selected { background: rgba(200,164,74,0.1); color: var(--amber); }
+.tribe-opt .ct { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+/* ── Center: Map ── */
+.map-area {
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.leaflet-container { background: var(--bg); }
+.leaflet-control-attribution { display: none !important; }
+
+.map-overlay-stat {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 400;
+  background: rgba(15,14,12,0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 10px;
+  color: var(--text-dim);
+  max-width: 260px;
+}
+
+.map-overlay-stat strong { color: var(--amber); font-weight: 500; }
+
+/* ── Right Panel: Analysis ── */
+.analysis {
+  background: var(--bg-raised);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.analysis-title {
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.analysis-subtitle {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.chart-container {
+  width: 100%;
+  position: relative;
+}
+
+.chart-container canvas {
+  width: 100%;
+  display: block;
+}
+
+/* Stats grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stat-card {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 8px 10px;
+}
+
+.stat-card .val {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card .lbl {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+/* Insight cards */
+.insight {
+  background: var(--bg-inset);
+  border-left: 2px solid var(--amber-dim);
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.insight strong { color: var(--text); font-weight: 500; }
+.insight .highlight { color: var(--amber); }
+.insight .warn { color: var(--red); }
+
+/* Loading */
+#loading {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: opacity 0.4s;
+}
+
+#loading.done { opacity: 0; pointer-events: none; }
+
+#loading h2 {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#load-bar {
+  width: 200px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+#load-fill {
+  height: 100%;
+  background: var(--amber);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+#load-msg {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* Popup */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-raised) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+}
+.leaflet-popup-tip { background: var(--bg-raised) !important; }
+.leaflet-popup-content { font-family: var(--mono); font-size: 11px; margin: 10px 12px !important; line-height: 1.6; }
+.popup-name { font-family: var(--serif); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.popup-tag { display: inline-block; padding: 1px 6px; border-radius: 2px; font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.popup-tag.fee { background: rgba(200,164,74,0.2); color: var(--amber); }
+.popup-tag.trust { background: rgba(90,138,154,0.2); color: var(--trust-color); }
+.popup-tag.forced { background: rgba(184,84,80,0.2); color: var(--red); }
+.popup-row { display: flex; justify-content: space-between; gap: 12px; }
+.popup-row .k { color: var(--text-faint); }
+.popup-row .v { color: var(--text); text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h2>Loading Patent Data…</h2>
+  <div id="load-bar"><div id="load-fill"></div></div>
+  <div id="load-msg">Connecting…</div>
+</div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">Allotment Patent Patterns</div>
+    <div class="header-tabs">
+      <button class="header-tab active" data-view="heatmap">Density</button>
+      <button class="header-tab" data-view="clusters">Clusters</button>
+      <button class="header-tab" data-view="compare">Compare</button>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-status" id="status">—</div>
+  </div>
+
+  <!-- Left: Controls -->
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-label">Patent Category</div>
+      <select class="ctrl-select" id="sel-category">
+        <option value="fee">Fee Patents (81,249)</option>
+        <option value="trust">Trust Patents (78,421)</option>
+        <option value="forced">Forced Fee Only (~15,045)</option>
+        <option value="all">All Patents (239,845)</option>
+      </select>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Time Range</div>
+      <div class="ctrl-row">
+        <select class="ctrl-select" id="sel-year-start"></select>
+        <span style="color:var(--text-faint);line-height:28px;">to</span>
+        <select class="ctrl-select" id="sel-year-end"></select>
+      </div>
+      <div class="ctrl-row" style="flex-wrap:wrap;gap:4px;">
+        <button class="ctrl-btn" onclick="setTimePreset(1887,1906)">Dawes Era</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1906,1920)">Burke Act</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1917,1921)">Declaration</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1921,1934)">1921–IRA</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1934,1953)">IRA Era</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1953,1960)">Termination</button>
+        <button class="ctrl-btn" onclick="setTimePreset(1854,1960)">All</button>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">State</div>
+      <select class="ctrl-select" id="sel-state">
+        <option value="">All States</option>
+      </select>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Tribe</div>
+      <input class="ctrl-input" id="tribe-search" placeholder="Search tribes…" />
+      <div class="tribe-selector" id="tribe-list"></div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Map Display</div>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-heatmap" checked /> Show density heatmap</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-points" checked /> Show individual patents</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-forced-highlight" checked /> Highlight forced fee</label>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-label">Legend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--trust-color)"></div>Trust Patent<span class="legend-count" id="leg-trust">—</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--fee-color)"></div>Fee Patent<span class="legend-count" id="leg-fee">—</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--forced-color)"></div>Forced Fee<span class="legend-count" id="leg-forced">—</span></div>
+    </div>
+
+    <div class="ctrl-section">
+      <button class="ctrl-btn primary" onclick="runAnalysis()" style="width:100%">▶ Run Analysis</button>
+    </div>
+  </div>
+
+  <!-- Center: Map -->
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="map-overlay-stat" id="map-stat">Select filters and click <strong>Run Analysis</strong> to load patent data.</div>
+  </div>
+
+  <!-- Right: Analysis -->
+  <div class="analysis" id="analysis-panel">
+    <div class="analysis-section">
+      <div class="analysis-subtitle">Summary</div>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="val" id="s-total">—</div><div class="lbl">Patents loaded</div></div>
+        <div class="stat-card"><div class="val" id="s-tribes">—</div><div class="lbl">Tribes</div></div>
+        <div class="stat-card"><div class="val" id="s-states">—</div><div class="lbl">States</div></div>
+        <div class="stat-card"><div class="val" id="s-span">—</div><div class="lbl">Year span</div></div>
+      </div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Temporal Distribution</div>
+      <div class="analysis-subtitle">Patents per year — are there waves?</div>
+      <div class="chart-container"><canvas id="chart-temporal" height="140"></canvas></div>
+      <div class="insight" id="insight-temporal">Run an analysis to see temporal patterns.</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Trust vs. Fee Timeline</div>
+      <div class="analysis-subtitle">When did each type peak?</div>
+      <div class="chart-container"><canvas id="chart-compare" height="140"></canvas></div>
+      <div class="insight" id="insight-compare">—</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Spatial Clustering</div>
+      <div class="analysis-subtitle">Are conversions random or clustered?</div>
+      <div class="insight" id="insight-spatial">Run analysis with data loaded to compute spatial statistics.</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Conversion Velocity</div>
+      <div class="analysis-subtitle">How quickly did fee patents follow trust patents by tribe?</div>
+      <div class="chart-container"><canvas id="chart-velocity" height="160"></canvas></div>
+      <div class="insight" id="insight-velocity">—</div>
+    </div>
+
+    <div class="analysis-section">
+      <div class="analysis-title">Top Counties</div>
+      <div class="analysis-subtitle">Where is activity most concentrated?</div>
+      <div id="county-bars"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+// Config & State
+// ═══════════════════════════════════════════════
+const BASE = 'https://services2.arcgis.com/8k2PygHqghVevhzy/arcgis/rest/services/tribal_land_patents_aliquot_20240304/FeatureServer/0/query';
+const FETCH_LIMIT = 8000;
+
+let map, heatLayer, pointLayer;
+let currentData = [];
+let tribeMap = {};  // name -> count
+let stateMap = {};
+let selectedTribe = null;
+let analysisCache = {};
+
+// Patent type -> where clause fragments
+const CATEGORIES = {
+  fee: "authority IN ('Indian Fee Patent','Indian Homestead Fee Patent','Indian Fee Patent (Heir)','Indian Trust to Fee','Indian Fee Patent-Misc.','Indian Fee Patent (Non-IRA)','Indian Fee Patent-Term or Non','Indian Fee Patent (IRA)')",
+  trust: "authority IN ('Indian Trust Patent','Indian Reissue Trust','Indian Homestead Trust','Indian Trust Patent (Wind R)')",
+  forced: "forced_fee = 'True'",
+  all: '1=1'
+};
+
+// ═══════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════
+async function init() {
+  initMap();
+  await loadMetadata();
+  initControls();
+  document.getElementById('loading').classList.add('done');
+}
+
+function initMap() {
+  map = L.map('map', {
+    center: [43, -104],
+    zoom: 5,
+    preferCanvas: true,
+    zoomControl: true,
+    maxZoom: 16,
+    minZoom: 3
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, pane: 'overlayPane'
+  }).addTo(map);
+
+  heatLayer = L.heatLayer([], {
+    radius: 18,
+    blur: 22,
+    maxZoom: 10,
+    gradient: {0.1: '#1a1a4a', 0.3: '#3a5a8a', 0.5: '#5a9a6a', 0.7: '#c8a44a', 0.9: '#c85a4a', 1.0: '#f0e0c0'}
+  }).addTo(map);
+
+  pointLayer = L.layerGroup().addTo(map);
+}
+
+async function query(params) {
+  const url = new URL(BASE);
+  const defaults = { f: 'json', outSR: 4326 };
+  for (const [k, v] of Object.entries({ ...defaults, ...params })) {
+    url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+  }
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function loadMetadata() {
+  setLoad(20, 'Loading tribe data…');
+  const tribeRes = await query({
+    where: '1=1',
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'preferred_name',
+    orderByFields: 'cnt DESC'
+  });
+  tribeRes.features.forEach(f => {
+    if (f.attributes.preferred_name) tribeMap[f.attributes.preferred_name] = f.attributes.cnt;
+  });
+
+  setLoad(50, 'Loading state data…');
+  const stateRes = await query({
+    where: '1=1',
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'state',
+    orderByFields: 'cnt DESC'
+  });
+  stateRes.features.forEach(f => {
+    if (f.attributes.state) stateMap[f.attributes.state] = f.attributes.cnt;
+  });
+
+  setLoad(100, 'Ready');
+}
+
+function setLoad(pct, msg) {
+  document.getElementById('load-fill').style.width = pct + '%';
+  document.getElementById('load-msg').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════
+// Controls
+// ═══════════════════════════════════════════════
+function initControls() {
+  // Year selectors
+  const ys = document.getElementById('sel-year-start');
+  const ye = document.getElementById('sel-year-end');
+  for (let y = 1854; y <= 1960; y++) {
+    ys.add(new Option(y, y));
+    ye.add(new Option(y, y));
+  }
+  ys.value = '1854';
+  ye.value = '1960';
+
+  // States
+  const ss = document.getElementById('sel-state');
+  for (const [st, ct] of Object.entries(stateMap)) {
+    ss.add(new Option(`${st} (${ct.toLocaleString()})`, st));
+  }
+
+  // Tribes
+  renderTribes();
+  document.getElementById('tribe-search').addEventListener('input', renderTribes);
+
+  // Tab switching
+  document.querySelectorAll('.header-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+}
+
+function renderTribes() {
+  const search = document.getElementById('tribe-search').value.toLowerCase();
+  const container = document.getElementById('tribe-list');
+  container.innerHTML = '';
+
+  const sorted = Object.entries(tribeMap)
+    .filter(([n]) => !search || n.toLowerCase().includes(search))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 60);
+
+  sorted.forEach(([name, count]) => {
+    const div = document.createElement('div');
+    div.className = `tribe-opt${selectedTribe === name ? ' selected' : ''}`;
+    div.innerHTML = `<span>${name}</span><span class="ct">${count.toLocaleString()}</span>`;
+    div.onclick = () => {
+      selectedTribe = selectedTribe === name ? null : name;
+      renderTribes();
+    };
+    container.appendChild(div);
+  });
+}
+
+function setTimePreset(start, end) {
+  document.getElementById('sel-year-start').value = start;
+  document.getElementById('sel-year-end').value = end;
+}
+
+// ═══════════════════════════════════════════════
+// Main Analysis
+// ═══════════════════════════════════════════════
+async function runAnalysis() {
+  const category = document.getElementById('sel-category').value;
+  const yearStart = parseInt(document.getElementById('sel-year-start').value);
+  const yearEnd = parseInt(document.getElementById('sel-year-end').value);
+  const state = document.getElementById('sel-state').value;
+
+  document.getElementById('status').textContent = 'Querying…';
+  document.getElementById('map-stat').innerHTML = 'Loading patent data…';
+
+  // Build where clause
+  const clauses = [CATEGORIES[category]];
+  if (yearStart > 1854 || yearEnd < 1960) {
+    clauses.push(`signature_date >= timestamp '${yearStart}-01-01' AND signature_date < timestamp '${yearEnd + 1}-01-01'`);
+  }
+  if (state) clauses.push(`state = '${state}'`);
+  if (selectedTribe) clauses.push(`preferred_name = '${selectedTribe.replace(/'/g, "''")}'`);
+
+  const where = clauses.join(' AND ');
+
+  // Get total count
+  const countRes = await query({ where, returnCountOnly: true });
+  const total = countRes.count || 0;
+
+  // Fetch features (centroid + attributes)
+  let allFeatures = [];
+  let offset = 0;
+  const batchSize = 2000;
+  const maxFetch = FETCH_LIMIT;
+
+  while (offset < Math.min(total, maxFetch)) {
+    const res = await query({
+      where,
+      outFields: 'OBJECTID,accession_number,preferred_name,full_name,signature_date,authority,state,county,forced_fee,cancelled_doc,aliquot_parts,section_number,township_number,range_number',
+      returnGeometry: true,
+      returnCentroid: true,
+      resultRecordCount: batchSize,
+      resultOffset: offset,
+      f: 'geojson'
+    });
+
+    if (!res.features || res.features.length === 0) break;
+    allFeatures = allFeatures.concat(res.features);
+    offset += res.features.length;
+
+    const pct = Math.round((offset / Math.min(total, maxFetch)) * 100);
+    document.getElementById('status').textContent = `Loading… ${pct}% (${allFeatures.length.toLocaleString()})`;
+  }
+
+  currentData = allFeatures;
+  document.getElementById('status').textContent = `${currentData.length.toLocaleString()} of ${total.toLocaleString()} loaded`;
+
+  // Also load comparison data (trust vs fee) for the same filters
+  await loadComparisonData(yearStart, yearEnd, state);
+
+  // Render everything
+  renderMap();
+  analyzePatterns();
+}
+
+async function loadComparisonData(yearStart, yearEnd, state) {
+  // Load year-by-year counts for both trust and fee
+  const timeClauses = [];
+  if (yearStart > 1854 || yearEnd < 1960) {
+    timeClauses.push(`signature_date >= timestamp '${yearStart}-01-01' AND signature_date < timestamp '${yearEnd + 1}-01-01'`);
+  }
+  if (state) timeClauses.push(`state = '${state}'`);
+  if (selectedTribe) timeClauses.push(`preferred_name = '${selectedTribe.replace(/'/g, "''")}'`);
+
+  const extraWhere = timeClauses.length ? ' AND ' + timeClauses.join(' AND ') : '';
+
+  // Fee patents per year
+  const feeYears = await query({
+    where: CATEGORIES.fee + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'signature_date',
+    orderByFields: 'signature_date ASC'
+  });
+
+  // Trust patents per year
+  const trustYears = await query({
+    where: CATEGORIES.trust + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'signature_date',
+    orderByFields: 'signature_date ASC'
+  });
+
+  // Forced fee per year
+  const forcedYears = await query({
+    where: CATEGORIES.forced + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'signature_date',
+    orderByFields: 'signature_date ASC'
+  });
+
+  // Aggregate into year bins
+  analysisCache.feeByYear = binByYear(feeYears.features || []);
+  analysisCache.trustByYear = binByYear(trustYears.features || []);
+  analysisCache.forcedByYear = binByYear(forcedYears.features || []);
+}
+
+function binByYear(features) {
+  const bins = {};
+  features.forEach(f => {
+    const ts = f.attributes.signature_date;
+    if (!ts) return;
+    const year = new Date(ts).getFullYear();
+    if (year >= 1850 && year <= 1970) {
+      bins[year] = (bins[year] || 0) + f.attributes.cnt;
+    }
+  });
+  return bins;
+}
+
+// ═══════════════════════════════════════════════
+// Map Rendering
+// ═══════════════════════════════════════════════
+function renderMap() {
+  pointLayer.clearLayers();
+  const heatPoints = [];
+  const showHeat = document.getElementById('chk-heatmap').checked;
+  const showPoints = document.getElementById('chk-points').checked;
+  const highlightForced = document.getElementById('chk-forced-highlight').checked;
+
+  let feeCount = 0, trustCount = 0, forcedCount = 0;
+
+  currentData.forEach(f => {
+    const p = f.properties;
+    let lat, lng;
+
+    if (f.geometry.type === 'Point') {
+      [lng, lat] = f.geometry.coordinates;
+    } else if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') {
+      const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
+      lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+      lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+    }
+    if (!lat || !lng) return;
+
+    const isForced = p.forced_fee === 'True';
+    const isFee = p.authority && p.authority.includes('Fee');
+    const isTrust = p.authority && (p.authority.includes('Trust') || p.authority.includes('Reissue'));
+
+    if (isForced) forcedCount++;
+    else if (isFee) feeCount++;
+    else if (isTrust) trustCount++;
+
+    // Heatmap point (with weight)
+    if (showHeat) {
+      heatPoints.push([lat, lng, isForced ? 1.5 : 1.0]);
+    }
+
+    // Circle markers
+    if (showPoints) {
+      let color, radius, opacity;
+      if (isForced && highlightForced) {
+        color = '#b85450'; radius = 4; opacity = 0.8;
+      } else if (isFee) {
+        color = '#c8a44a'; radius = 3; opacity = 0.5;
+      } else if (isTrust) {
+        color = '#5a8a9a'; radius = 2.5; opacity = 0.4;
+      } else {
+        color = '#8a8478'; radius = 2; opacity = 0.3;
+      }
+
+      const marker = L.circleMarker([lat, lng], {
+        radius, fillColor: color, fillOpacity: opacity,
+        color: 'rgba(255,255,255,0.08)', weight: 0.5
+      });
+
+      marker.bindPopup(() => makePopup(p));
+      pointLayer.addLayer(marker);
+    }
+  });
+
+  heatLayer.setLatLngs(showHeat ? heatPoints : []);
+
+  // Legend counts
+  document.getElementById('leg-trust').textContent = trustCount.toLocaleString();
+  document.getElementById('leg-fee').textContent = feeCount.toLocaleString();
+  document.getElementById('leg-forced').textContent = forcedCount.toLocaleString();
+
+  // Fit bounds
+  if (heatPoints.length > 0) {
+    const lats = heatPoints.map(p => p[0]);
+    const lngs = heatPoints.map(p => p[1]);
+    map.fitBounds([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]], { padding: [30, 30] });
+  }
+
+  document.getElementById('map-stat').innerHTML = `<strong>${currentData.length.toLocaleString()}</strong> patents displayed`;
+}
+
+function makePopup(p) {
+  const date = p.signature_date ? new Date(p.signature_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : '—';
+  const isFee = p.authority?.includes('Fee');
+  const isForced = p.forced_fee === 'True';
+  const tagClass = isForced ? 'forced' : (isFee ? 'fee' : 'trust');
+  const tagText = isForced ? 'Forced Fee' : (isFee ? 'Fee Patent' : 'Trust Patent');
+
+  return `<div>
+    <div class="popup-name">${p.full_name || 'Unknown'}</div>
+    <span class="popup-tag ${tagClass}">${tagText}</span>
+    <div class="popup-row"><span class="k">Tribe</span><span class="v">${p.preferred_name || '—'}</span></div>
+    <div class="popup-row"><span class="k">Date</span><span class="v">${date}</span></div>
+    <div class="popup-row"><span class="k">Authority</span><span class="v">${p.authority || '—'}</span></div>
+    <div class="popup-row"><span class="k">State/County</span><span class="v">${p.state || ''}${p.county ? ', ' + p.county : ''}</span></div>
+    <div class="popup-row"><span class="k">Location</span><span class="v">T${p.township_number || '?'} R${p.range_number || '?'} §${p.section_number || '?'} ${p.aliquot_parts || ''}</span></div>
+    <div class="popup-row"><span class="k">Accession</span><span class="v">${p.accession_number || '—'}</span></div>
+    ${p.cancelled_doc === 'True' ? '<div style="color:var(--text-faint);font-style:italic;margin-top:4px;">Cancelled</div>' : ''}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// Pattern Analysis
+// ═══════════════════════════════════════════════
+function analyzePatterns() {
+  if (currentData.length === 0) return;
+
+  // ── Summary stats ──
+  const tribes = new Set();
+  const states = new Set();
+  const years = [];
+
+  currentData.forEach(f => {
+    const p = f.properties;
+    if (p.preferred_name) tribes.add(p.preferred_name);
+    if (p.state) states.add(p.state);
+    if (p.signature_date) {
+      const y = new Date(p.signature_date).getFullYear();
+      if (y >= 1850 && y <= 1970) years.push(y);
+    }
+  });
+
+  years.sort((a, b) => a - b);
+
+  document.getElementById('s-total').textContent = currentData.length.toLocaleString();
+  document.getElementById('s-tribes').textContent = tribes.size;
+  document.getElementById('s-states').textContent = states.size;
+  document.getElementById('s-span').textContent = years.length > 0 ? `${years[0]}–${years[years.length - 1]}` : '—';
+
+  // ── Temporal distribution ──
+  drawTemporalChart(years);
+
+  // ── Trust vs Fee comparison ──
+  drawCompareChart();
+
+  // ── Spatial clustering ──
+  analyzeSpatialClustering();
+
+  // ── Conversion velocity by tribe ──
+  drawVelocityChart();
+
+  // ── County breakdown ──
+  drawCountyBars();
+}
+
+function drawTemporalChart(years) {
+  const canvas = document.getElementById('chart-temporal');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 140 * dpr;
+  canvas.style.height = '140px';
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 140;
+
+  // Bin by year
+  const bins = {};
+  years.forEach(y => bins[y] = (bins[y] || 0) + 1);
+
+  const allYears = [];
+  const minY = Math.min(...years), maxY = Math.max(...years);
+  for (let y = minY; y <= maxY; y++) allYears.push(y);
+
+  const maxCount = Math.max(...allYears.map(y => bins[y] || 0), 1);
+  const barW = (W - 40) / allYears.length;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw bars
+  allYears.forEach((year, i) => {
+    const count = bins[year] || 0;
+    const barH = (count / maxCount) * (H - 28);
+    const x = 30 + i * barW;
+    const y = H - 14 - barH;
+
+    ctx.fillStyle = 'rgba(200, 164, 74, 0.7)';
+    ctx.fillRect(x, y, Math.max(barW - 0.5, 1), barH);
+  });
+
+  // Y axis labels
+  ctx.fillStyle = '#5a554e';
+  ctx.font = '9px "IBM Plex Mono"';
+  ctx.textAlign = 'right';
+  ctx.fillText(maxCount.toLocaleString(), 28, 16);
+  ctx.fillText('0', 28, H - 14);
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  const step = Math.max(Math.floor(allYears.length / 8), 1);
+  for (let i = 0; i < allYears.length; i += step) {
+    ctx.fillText(allYears[i], 30 + i * barW + barW / 2, H - 2);
+  }
+
+  // ── Temporal insight ──
+  // Find peak year and peak decade
+  let peakYear = minY, peakCount = 0;
+  for (const [y, c] of Object.entries(bins)) {
+    if (c > peakCount) { peakCount = c; peakYear = parseInt(y); }
+  }
+
+  // Compute coefficient of variation (measure of clustering)
+  const mean = years.length / allYears.length;
+  const variance = allYears.reduce((s, y) => s + Math.pow((bins[y] || 0) - mean, 2), 0) / allYears.length;
+  const cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+
+  const clusterDesc = cv > 2 ? 'strongly clustered' : cv > 1 ? 'moderately clustered' : 'relatively evenly distributed';
+
+  document.getElementById('insight-temporal').innerHTML =
+    `Peak year: <strong class="highlight">${peakYear}</strong> with <strong>${peakCount.toLocaleString()}</strong> patents. ` +
+    `Distribution is <strong>${clusterDesc}</strong> (CV=${cv.toFixed(2)}). ` +
+    (cv > 1.5 ? 'This indicates <strong class="warn">significant temporal waves</strong> — patents were not issued steadily but in concentrated bursts.' : '');
+}
+
+function drawCompareChart() {
+  const canvas = document.getElementById('chart-compare');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 140 * dpr;
+  canvas.style.height = '140px';
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 140;
+
+  const feeY = analysisCache.feeByYear || {};
+  const trustY = analysisCache.trustByYear || {};
+  const forcedY = analysisCache.forcedByYear || {};
+
+  // All years present
+  const allYearsSet = new Set([...Object.keys(feeY), ...Object.keys(trustY), ...Object.keys(forcedY)].map(Number));
+  if (allYearsSet.size === 0) return;
+
+  const minY = Math.min(...allYearsSet), maxY = Math.max(...allYearsSet);
+  const allYears = [];
+  for (let y = minY; y <= maxY; y++) allYears.push(y);
+
+  const maxCount = Math.max(
+    ...allYears.map(y => Math.max(feeY[y] || 0, trustY[y] || 0)),
+    1
+  );
+
+  const barW = (W - 40) / allYears.length;
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw trust bars (background)
+  allYears.forEach((year, i) => {
+    const count = trustY[year] || 0;
+    const barH = (count / maxCount) * (H - 28);
+    const x = 30 + i * barW;
+    ctx.fillStyle = 'rgba(90, 138, 154, 0.5)';
+    ctx.fillRect(x, H - 14 - barH, Math.max(barW - 0.5, 1), barH);
+  });
+
+  // Draw fee bars (overlaid, narrower)
+  allYears.forEach((year, i) => {
+    const count = feeY[year] || 0;
+    const barH = (count / maxCount) * (H - 28);
+    const x = 30 + i * barW;
+    ctx.fillStyle = 'rgba(200, 164, 74, 0.7)';
+    ctx.fillRect(x + barW * 0.2, H - 14 - barH, Math.max(barW * 0.6, 1), barH);
+  });
+
+  // Draw forced fee line
+  ctx.strokeStyle = '#b85450';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let started = false;
+  allYears.forEach((year, i) => {
+    const count = forcedY[year] || 0;
+    const barH = (count / maxCount) * (H - 28);
+    const x = 30 + i * barW + barW / 2;
+    const y = H - 14 - barH;
+    if (!started && count > 0) { ctx.moveTo(x, y); started = true; }
+    else if (started) ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#5a554e';
+  ctx.font = '9px "IBM Plex Mono"';
+  ctx.textAlign = 'right';
+  ctx.fillText(maxCount.toLocaleString(), 28, 16);
+  ctx.textAlign = 'center';
+  const step = Math.max(Math.floor(allYears.length / 8), 1);
+  for (let i = 0; i < allYears.length; i += step) {
+    ctx.fillText(allYears[i], 30 + i * barW, H - 2);
+  }
+
+  // Legend
+  ctx.font = '9px "IBM Plex Mono"';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(90,138,154,0.8)'; ctx.fillRect(W - 120, 6, 8, 8);
+  ctx.fillStyle = '#8a8478'; ctx.fillText('Trust', W - 108, 14);
+  ctx.fillStyle = 'rgba(200,164,74,0.8)'; ctx.fillRect(W - 120, 18, 8, 8);
+  ctx.fillStyle = '#8a8478'; ctx.fillText('Fee', W - 108, 26);
+  ctx.strokeStyle = '#b85450'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W - 120, 34); ctx.lineTo(W - 112, 34); ctx.stroke();
+  ctx.fillStyle = '#8a8478'; ctx.fillText('Forced', W - 108, 38);
+
+  // Insight: find lag between trust peak and fee peak
+  let trustPeak = 0, trustPeakYear = 0, feePeak = 0, feePeakYear = 0;
+  for (const y of allYears) {
+    if ((trustY[y] || 0) > trustPeak) { trustPeak = trustY[y]; trustPeakYear = y; }
+    if ((feeY[y] || 0) > feePeak) { feePeak = feeY[y]; feePeakYear = y; }
+  }
+
+  const lag = feePeakYear - trustPeakYear;
+  document.getElementById('insight-compare').innerHTML =
+    `Trust patents peaked in <strong class="highlight">${trustPeakYear}</strong>, ` +
+    `fee patents peaked in <strong class="highlight">${feePeakYear}</strong>` +
+    (lag > 0 ? ` — a <strong>${lag}-year lag</strong> between allotment and conversion to alienable title.` : '.') +
+    (lag >= 15 ? ' This long gap suggests trust periods were often being honored.' : '') +
+    (lag > 0 && lag < 10 ? ' <span class="warn">This short gap suggests rapid, possibly coerced conversion.</span>' : '');
+}
+
+function analyzeSpatialClustering() {
+  // Compute nearest-neighbor statistics
+  const points = [];
+  currentData.forEach(f => {
+    let lat, lng;
+    if (f.geometry.type === 'Point') {
+      [lng, lat] = f.geometry.coordinates;
+    } else if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') {
+      const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
+      lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+      lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+    }
+    if (lat && lng) points.push([lat, lng]);
+  });
+
+  if (points.length < 20) {
+    document.getElementById('insight-spatial').innerHTML = 'Not enough data points for spatial analysis.';
+    return;
+  }
+
+  // Sample for performance (NNI on full set too expensive)
+  const sampleSize = Math.min(points.length, 500);
+  const sample = [];
+  const used = new Set();
+  while (sample.length < sampleSize) {
+    const idx = Math.floor(Math.random() * points.length);
+    if (!used.has(idx)) { sample.push(points[idx]); used.add(idx); }
+  }
+
+  // Compute mean nearest-neighbor distance
+  let totalNND = 0;
+  sample.forEach(p1 => {
+    let minDist = Infinity;
+    sample.forEach(p2 => {
+      if (p1 === p2) return;
+      const d = haversine(p1[0], p1[1], p2[0], p2[1]);
+      if (d < minDist) minDist = d;
+    });
+    totalNND += minDist;
+  });
+
+  const meanNND = totalNND / sampleSize;
+
+  // Expected NND for random distribution: 0.5 / sqrt(density)
+  const lats = sample.map(p => p[0]), lngs = sample.map(p => p[1]);
+  const areaKm2 = (Math.max(...lats) - Math.min(...lats)) * 111 * (Math.max(...lngs) - Math.min(...lngs)) * 85;
+  const density = sampleSize / Math.max(areaKm2, 1);
+  const expectedNND = 0.5 / Math.sqrt(density);
+  const nni = meanNND / expectedNND;
+
+  const clusterLevel = nni < 0.5 ? 'very strongly clustered' :
+    nni < 0.7 ? 'strongly clustered' :
+    nni < 0.9 ? 'moderately clustered' :
+    nni < 1.1 ? 'approximately random' :
+    'dispersed';
+
+  // County concentration
+  const counties = {};
+  currentData.forEach(f => {
+    const c = f.properties.county;
+    if (c) counties[c] = (counties[c] || 0) + 1;
+  });
+  const sortedCounties = Object.entries(counties).sort((a, b) => b[1] - a[1]);
+  const topCounty = sortedCounties[0];
+  const topCountyPct = topCounty ? Math.round(topCounty[1] / currentData.length * 100) : 0;
+
+  document.getElementById('insight-spatial').innerHTML =
+    `Nearest Neighbor Index: <strong class="highlight">${nni.toFixed(3)}</strong> — spatial distribution is <strong>${clusterLevel}</strong>. ` +
+    `Mean nearest-neighbor distance: <strong>${meanNND.toFixed(1)} km</strong>. ` +
+    (topCounty ? `<br>Most concentrated in <strong>${topCounty[0]} County</strong> (${topCountyPct}% of patents). ` : '') +
+    (nni < 0.7 ? '<span class="warn">Strong clustering suggests systematic, geographically targeted patent issuance rather than organic individual applications.</span>' : '') +
+    (sortedCounties.length > 2 ? `<br>Top 3 counties hold <strong>${Math.round((sortedCounties.slice(0,3).reduce((s,c) => s+c[1],0) / currentData.length) * 100)}%</strong> of all patents in view.` : '');
+}
+
+function drawVelocityChart() {
+  // For each tribe in current data, compute median trust year and median fee year
+  const tribeYears = {};
+  currentData.forEach(f => {
+    const p = f.properties;
+    if (!p.preferred_name || !p.signature_date) return;
+    const year = new Date(p.signature_date).getFullYear();
+    if (year < 1850 || year > 1970) return;
+
+    if (!tribeYears[p.preferred_name]) tribeYears[p.preferred_name] = { trust: [], fee: [], forced: [] };
+
+    const isFee = p.authority?.includes('Fee');
+    const isTrust = p.authority?.includes('Trust') || p.authority?.includes('Reissue');
+    const isForced = p.forced_fee === 'True';
+
+    if (isForced) tribeYears[p.preferred_name].forced.push(year);
+    else if (isFee) tribeYears[p.preferred_name].fee.push(year);
+    else if (isTrust) tribeYears[p.preferred_name].trust.push(year);
+  });
+
+  // Compute medians, filter to tribes with both trust and fee data
+  const velocityData = [];
+  for (const [tribe, data] of Object.entries(tribeYears)) {
+    if (data.trust.length < 3 || data.fee.length < 3) continue;
+    const medTrust = median(data.trust);
+    const medFee = median(data.fee);
+    velocityData.push({
+      tribe,
+      medTrust,
+      medFee,
+      lag: medFee - medTrust,
+      trustCount: data.trust.length,
+      feeCount: data.fee.length,
+      forcedCount: data.forced.length
+    });
+  }
+
+  velocityData.sort((a, b) => a.lag - b.lag);
+
+  const canvas = document.getElementById('chart-velocity');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  const rows = Math.min(velocityData.length, 18);
+  const rowH = 16;
+  const chartH = rows * rowH + 30;
+  canvas.height = chartH * dpr;
+  canvas.style.height = chartH + 'px';
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+
+  ctx.clearRect(0, 0, W, chartH);
+
+  if (velocityData.length === 0) {
+    document.getElementById('insight-velocity').innerHTML = 'Need both trust and fee patents in the data to compute conversion velocity.';
+    return;
+  }
+
+  const minYear = Math.min(...velocityData.map(d => Math.min(d.medTrust, d.medFee)));
+  const maxYear = Math.max(...velocityData.map(d => Math.max(d.medTrust, d.medFee)));
+  const labelW = 130;
+  const chartW = W - labelW - 20;
+  const yearToX = y => labelW + ((y - minYear) / (maxYear - minYear + 1)) * chartW;
+
+  // Draw rows
+  velocityData.slice(0, rows).forEach((d, i) => {
+    const y = i * rowH + 20;
+
+    // Tribe label
+    ctx.fillStyle = '#8a8478';
+    ctx.font = '9px "IBM Plex Mono"';
+    ctx.textAlign = 'right';
+    const displayName = d.tribe.length > 18 ? d.tribe.substring(0, 17) + '…' : d.tribe;
+    ctx.fillText(displayName, labelW - 8, y + 4);
+
+    // Trust → Fee line
+    const x1 = yearToX(d.medTrust);
+    const x2 = yearToX(d.medFee);
+
+    ctx.strokeStyle = d.lag < 10 ? 'rgba(184,84,80,0.6)' : 'rgba(140,134,124,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(x2, y);
+    ctx.stroke();
+
+    // Trust dot
+    ctx.fillStyle = '#5a8a9a';
+    ctx.beginPath();
+    ctx.arc(x1, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fee dot
+    ctx.fillStyle = d.forcedCount > 0 ? '#b85450' : '#c8a44a';
+    ctx.beginPath();
+    ctx.arc(x2, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Lag label
+    ctx.fillStyle = d.lag < 10 ? '#b85450' : '#5a554e';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${d.lag > 0 ? '+' : ''}${d.lag.toFixed(0)}y`, x2 + 6, y + 3);
+  });
+
+  // X axis
+  ctx.fillStyle = '#5a554e';
+  ctx.textAlign = 'center';
+  ctx.font = '9px "IBM Plex Mono"';
+  const axisY = rows * rowH + 24;
+  for (let y = Math.ceil(minYear / 10) * 10; y <= maxYear; y += 10) {
+    ctx.fillText(y, yearToX(y), axisY);
+  }
+
+  // Insight
+  const fastConversions = velocityData.filter(d => d.lag < 10);
+  const avgLag = velocityData.reduce((s, d) => s + d.lag, 0) / velocityData.length;
+
+  document.getElementById('insight-velocity').innerHTML =
+    `Average trust→fee lag: <strong class="highlight">${avgLag.toFixed(1)} years</strong>. ` +
+    (fastConversions.length > 0 ?
+      `<span class="warn"><strong>${fastConversions.length} tribe(s)</strong> show a lag under 10 years</span>` +
+      ` (${fastConversions.map(d => d.tribe).join(', ')}), suggesting rapid or coerced conversion. ` : '') +
+    `<span style="color:var(--trust-color)">●</span> Trust median · ` +
+    `<span style="color:var(--fee-color)">●</span> Fee median · ` +
+    `<span style="color:var(--forced-color)">●</span> Forced fee present`;
+}
+
+function drawCountyBars() {
+  const counties = {};
+  currentData.forEach(f => {
+    const c = f.properties.county;
+    const st = f.properties.state;
+    if (c) {
+      const key = `${c}, ${st || ''}`;
+      counties[key] = (counties[key] || 0) + 1;
+    }
+  });
+
+  const sorted = Object.entries(counties).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const maxCount = sorted[0]?.[1] || 1;
+  const container = document.getElementById('county-bars');
+  container.innerHTML = '';
+
+  sorted.forEach(([name, count]) => {
+    const pct = (count / maxCount * 100).toFixed(0);
+    container.innerHTML += `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+        <span style="width:120px;text-align:right;color:var(--text-dim);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</span>
+        <div style="flex:1;height:10px;background:var(--bg-inset);border-radius:1px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:rgba(200,164,74,0.5);border-radius:1px;"></div>
+        </div>
+        <span style="width:48px;text-align:right;color:var(--text-faint);font-size:10px;font-variant-numeric:tabular-nums;">${count.toLocaleString()}</span>
+      </div>
+    `;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function median(arr) {
+  const s = arr.slice().sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// ── Boot ──
+init().catch(err => {
+  console.error(err);
+  document.getElementById('load-msg').textContent = 'Error: ' + err.message;
+});
+</script>
+</body>
+</html>
