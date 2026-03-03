@@ -24,8 +24,8 @@ App.initMap = function() {
   // so we style its canvas directly after init
   App.heatLayer = L.heatLayer([], {
     radius: 20,
-    blur: 12,
-    maxZoom: 6,
+    blur: 8,
+    maxZoom: App.map.getZoom() + 1,
     gradient: {
       0: 'rgba(0,0,0,0)',
       0.2: '#fef0d9',
@@ -45,44 +45,33 @@ App.initMap = function() {
   App.pointLayer = L.layerGroup().addTo(App.map);
   App.parcelLayer = L.layerGroup().addTo(App.map);
 
-  // Re-render on zoom change to toggle parcels vs markers
+  // Re-render on zoom change — rebuild heatmap and toggle parcels vs markers
   App.map.on('zoomend', function() {
     var newZoom = App.map.getZoom();
     if (App.lastZoom !== null && App.currentData.length > 0) {
-      var crossedThreshold = (App.lastZoom < 9 && newZoom >= 9) || (App.lastZoom >= 9 && newZoom < 9);
-      if (crossedThreshold) {
-        if (App.timelineMode && App.timelineYear !== null) {
-          App.setTimelineYear(App.timelineYear);
-        } else {
-          App.renderMap(false);
-        }
+      // Always re-render to rebuild heatmap at new zoom
+      if (App.timelineMode && App.timelineYear !== null) {
+        App.setTimelineYear(App.timelineYear);
+      } else {
+        App.renderMap(false);
       }
     }
     App.lastZoom = newZoom;
-    App.updateHeatRadius();
   });
 
   App.lastZoom = App.map.getZoom();
 };
 
-// Heatmap radius and intensity scaling per zoom level
+// Rebuild heatmap radius as fixed geographic distance (~0.4 miles) in pixels
 App.updateHeatRadius = function() {
   if (!App.heatLayer) return;
   var zoom = App.map.getZoom();
-  // 0.4 miles in pixels at this zoom
-  var geoRadiusPx = (0.4 / 69) * (256 * Math.pow(2, zoom) / 360);
-  // Floor of 18px keeps points visible at low zoom without bloating
-  var radiusPx = Math.max(18, Math.round(geoRadiusPx));
-  var blurPx = Math.round(radiusPx * 0.5);
+  var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
+  var radiusPx = Math.max(5, Math.min(35, Math.round((0.4 / 69) * pixPerDeg)));
+  var blurPx = Math.max(3, Math.round(radiusPx * 0.4));
 
-  // Scale max down as zoom increases — fewer points visible, need lower
-  // threshold to stay visible. Base max set in renderMap, reduce by ~half
-  // per 3 zoom levels above 6.
-  var baseMax = App._heatBaseMax || 2;
-  var zoomFactor = Math.pow(0.5, Math.max(0, zoom - 6) / 3);
-  var max = Math.max(1, baseMax * zoomFactor);
-
-  App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx, max: max });
+  // maxZoom = current zoom + 1 disables leaflet.heat internal scaling
+  App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx, maxZoom: zoom + 1 });
 };
 
 App.renderMap = function(fitBounds) {
@@ -172,9 +161,8 @@ App.renderMap = function(fitBounds) {
     }
   });
 
-  // Dynamic max scaling — sqrt-based so density variation is visible, not saturated
   if (heatPoints.length > 0) {
-    App._heatBaseMax = Math.max(2, Math.sqrt(heatPoints.length) * 0.3);
+    App.heatLayer.setOptions({ max: Math.max(2, Math.sqrt(heatPoints.length) * 0.3) });
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
   App.updateHeatRadius();
