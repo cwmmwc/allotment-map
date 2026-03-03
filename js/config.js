@@ -8,6 +8,9 @@ window.App = {
 
   CATEGORIES: {
     fee: "(authority IN ('Indian Fee Patent','Indian Homestead Fee Patent','Indian Fee Patent (Heir)','Indian Trust to Fee','Indian Fee Patent-Misc.','Indian Fee Patent (Non-IRA)','Indian Fee Patent-Term or Non','Indian Fee Patent (IRA)') OR forced_fee = 'True')",
+    // fee_authority: fee by authority only — for year-by-year chart where signature_date
+    // reflects actual fee issuance, not trust patent date of forced conversions
+    fee_authority: "authority IN ('Indian Fee Patent','Indian Homestead Fee Patent','Indian Fee Patent (Heir)','Indian Trust to Fee','Indian Fee Patent-Misc.','Indian Fee Patent (Non-IRA)','Indian Fee Patent-Term or Non','Indian Fee Patent (IRA)')",
     trust: "authority IN ('Indian Trust Patent','Indian Reissue Trust','Indian Homestead Trust','Indian Trust Patent (Wind R)','Indian Allotment - General','Indian Allotment-Wyandotte','Indian Allotment in Nat. Forest','Indian Partition') AND forced_fee = 'False'",
     forced: "forced_fee = 'True'",
     all: '1=1'

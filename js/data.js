@@ -151,9 +151,9 @@ App.loadComparisonData = async function(yearStart, yearEnd, state) {
 
   var extraWhere = timeClauses.length ? ' AND ' + timeClauses.join(' AND ') : '';
 
-  // Fee patents per year
+  // Fee patents per year (authority-only, so dates reflect actual fee issuance)
   var feeYears = await App.query({
-    where: App.CATEGORIES.fee + extraWhere,
+    where: App.CATEGORIES.fee_authority + extraWhere,
     outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
     groupByFieldsForStatistics: 'signature_date',
     orderByFields: 'signature_date ASC'
