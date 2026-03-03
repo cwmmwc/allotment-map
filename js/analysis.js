@@ -296,7 +296,7 @@ App.drawVelocityChart = function() {
 
     if (!tribeYears[p.preferred_name]) tribeYears[p.preferred_name] = { trust: [], fee: [], forced: [] };
 
-    var type = App.classifyPatent(p.authority);
+    var type = App.classifyPatent(p.authority, p.forced_fee);
 
     if (p.forced_fee === 'True') tribeYears[p.preferred_name].forced.push(year);
     if (type === 'fee') tribeYears[p.preferred_name].fee.push(year);

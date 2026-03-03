@@ -94,7 +94,7 @@ App.renderMap = function(fitBounds) {
 
   App.currentData.forEach(function(f) {
     var p = f.properties;
-    var type = App.classifyPatent(p.authority);
+    var type = App.classifyPatent(p.authority, p.forced_fee);
     var isForced = p.forced_fee === 'True';
 
     if (isForced) forcedCount++;
@@ -215,7 +215,7 @@ App.renderMap = function(fitBounds) {
 
 App.makePopup = function(p) {
   var date = p.signature_date ? new Date(p.signature_date).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : '\u2014';
-  var type = App.classifyPatent(p.authority);
+  var type = App.classifyPatent(p.authority, p.forced_fee);
   var isForced = p.forced_fee === 'True';
   var tagClass = isForced ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
   var tagText = isForced ? 'Forced Fee' : (type === 'fee' ? 'Fee Patent' : 'Trust Patent');

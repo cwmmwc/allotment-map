@@ -110,7 +110,7 @@ App.renderCompare = function() {
     var p = f.properties;
     var tribe = p.preferred_name || 'Unknown';
     if (!tribes[tribe]) tribes[tribe] = { trust: 0, fee: 0, forced: 0, years: [] };
-    var type = App.classifyPatent(p.authority);
+    var type = App.classifyPatent(p.authority, p.forced_fee);
     if (p.forced_fee === 'True') tribes[tribe].forced++;
     if (type === 'fee') tribes[tribe].fee++;
     else if (type === 'trust') tribes[tribe].trust++;
