@@ -4,6 +4,7 @@
 window.App = {
   BASE: 'https://services2.arcgis.com/8k2PygHqghVevhzy/arcgis/rest/services/tribal_land_patents_aliquot_20240304/FeatureServer/0/query',
   FETCH_LIMIT: 25000,
+  FETCH_LIMIT_NATIONWIDE: 50000,
 
   CATEGORIES: {
     fee: "authority IN ('Indian Fee Patent','Indian Homestead Fee Patent','Indian Fee Patent (Heir)','Indian Trust to Fee','Indian Fee Patent-Misc.','Indian Fee Patent (Non-IRA)','Indian Fee Patent-Term or Non','Indian Fee Patent (IRA)')",

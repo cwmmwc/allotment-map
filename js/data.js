@@ -60,33 +60,61 @@ App.runAnalysis = async function() {
   var countRes = await App.query({ where: where, returnCountOnly: true });
   var total = countRes.count || 0;
 
-  // Fetch features (centroid + attributes)
+  // For large queries (nationwide), use centroids only for performance
+  var useCentroidsOnly = total > App.FETCH_LIMIT;
+  var maxFetch = useCentroidsOnly ? App.FETCH_LIMIT_NATIONWIDE : App.FETCH_LIMIT;
+
+  // Fetch features
   var allFeatures = [];
   var offset = 0;
   var batchSize = 2000;
-  var maxFetch = App.FETCH_LIMIT;
 
   while (offset < Math.min(total, maxFetch)) {
-    var res = await App.query({
+    var queryParams = {
       where: where,
       outFields: 'OBJECTID,accession_number,preferred_name,full_name,signature_date,authority,state,county,forced_fee,cancelled_doc,aliquot_parts,section_number,township_number,range_number',
-      returnGeometry: true,
-      returnCentroid: true,
       resultRecordCount: batchSize,
-      resultOffset: offset,
-      f: 'geojson'
-    });
+      resultOffset: offset
+    };
+    if (useCentroidsOnly) {
+      // Esri JSON with centroids — much smaller payload than full polygons
+      queryParams.returnGeometry = false;
+      queryParams.returnCentroid = true;
+      queryParams.f = 'json';
+    } else {
+      queryParams.returnGeometry = true;
+      queryParams.returnCentroid = true;
+      queryParams.f = 'geojson';
+    }
+    var res = await App.query(queryParams);
 
-    if (!res.features || res.features.length === 0) break;
-    allFeatures = allFeatures.concat(res.features);
-    offset += res.features.length;
+    if (useCentroidsOnly) {
+      // Convert Esri JSON centroids to GeoJSON-like features
+      if (!res.features || res.features.length === 0) break;
+      res.features.forEach(function(f) {
+        if (f.centroid) {
+          allFeatures.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [f.centroid.x, f.centroid.y] },
+            properties: f.attributes
+          });
+        }
+      });
+      offset += res.features.length;
+    } else {
+      if (!res.features || res.features.length === 0) break;
+      allFeatures = allFeatures.concat(res.features);
+      offset += res.features.length;
+    }
 
     var pct = Math.round((offset / Math.min(total, maxFetch)) * 100);
     document.getElementById('status').textContent = 'Loading\u2026 ' + pct + '% (' + allFeatures.length.toLocaleString() + ')';
   }
 
   App.currentData = allFeatures;
-  document.getElementById('status').textContent = App.currentData.length.toLocaleString() + ' of ' + total.toLocaleString() + ' loaded';
+  var statusText = App.currentData.length.toLocaleString() + ' of ' + total.toLocaleString() + ' loaded';
+  if (useCentroidsOnly) statusText += ' (centroids — zoom in and select a tribe for parcels)';
+  document.getElementById('status').textContent = statusText;
 
   // Also load comparison data (trust vs fee) for the same filters
   await App.loadComparisonData(yearStart, yearEnd, state);
