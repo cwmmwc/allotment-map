@@ -90,6 +90,7 @@ App.drawTimelineChart = function() {
   });
 
   ctx.clearRect(0, 0, W, H);
+  var chartH = H - 12; // reserve 12px at bottom for year labels
   var barW = W / years.length;
 
   // Draw trust (blue, back) then fee+forced (amber, front) stacked
@@ -97,23 +98,40 @@ App.drawTimelineChart = function() {
     var b = bins[year] || { trust: 0, fee: 0, forced: 0 };
     var x = i * barW;
 
-    // Trust bar (full height = trust + fee + forced)
-    var trustH = (b.trust / maxVal) * (H - 2);
-    var feeH = ((b.fee + b.forced) / maxVal) * (H - 2);
+    var trustH = (b.trust / maxVal) * (chartH - 2);
+    var feeH = ((b.fee + b.forced) / maxVal) * (chartH - 2);
 
     // Trust (blue) on bottom
     ctx.fillStyle = 'rgba(41, 128, 185, 0.5)';
-    ctx.fillRect(x, H - 1 - trustH - feeH, Math.max(barW - 0.5, 1), trustH);
+    ctx.fillRect(x, chartH - 1 - trustH - feeH, Math.max(barW - 0.5, 1), trustH);
 
     // Fee (amber) stacked on top of trust
     ctx.fillStyle = 'rgba(212, 160, 23, 0.7)';
-    ctx.fillRect(x, H - 1 - feeH, Math.max(barW - 0.5, 1), feeH);
+    ctx.fillRect(x, chartH - 1 - feeH, Math.max(barW - 0.5, 1), feeH);
   });
 
-  // Store layout info for hit-testing
+  // Year labels along x-axis
+  ctx.fillStyle = '#9a9490';
+  ctx.font = '9px "IBM Plex Mono"';
+  ctx.textAlign = 'center';
+  var span = maxYear - minYear;
+  var step = span > 80 ? 20 : span > 40 ? 10 : 5;
+  var firstTick = Math.ceil(minYear / step) * step;
+  for (var tick = firstTick; tick <= maxYear; tick += step) {
+    var tx = ((tick - minYear) / span) * W;
+    ctx.fillText(tick, tx, H - 1);
+  }
+
+  // Store layout info for hit-testing and slider
   App._tlYears = years;
   App._tlMinYear = minYear;
   App._tlMaxYear = maxYear;
+
+  // Sync range slider bounds
+  var slider = document.getElementById('tl-slider');
+  slider.min = minYear;
+  slider.max = maxYear;
+  slider.value = App.timelineYear || minYear;
 };
 
 // Set the timeline to a specific year and re-render the map
@@ -148,8 +166,9 @@ App.setTimelineYear = function(year) {
     thumb.style.left = (pct * track.offsetWidth) + 'px';
   }
 
-  // Update year label
+  // Update year label and slider
   document.getElementById('tl-year-label').textContent = year;
+  document.getElementById('tl-slider').value = year;
 
   // Update overlay
   var overlay = document.getElementById('map-year-overlay');
@@ -244,6 +263,13 @@ App.initTimelineTrack = function() {
     } else {
       App.playTimeline();
     }
+  });
+
+  // Range slider — primary manual scrubbing control
+  var slider = document.getElementById('tl-slider');
+  slider.addEventListener('input', function() {
+    App.pauseTimeline();
+    App.setTimelineYear(parseInt(this.value));
   });
 
   // Speed change restarts playback if currently playing
