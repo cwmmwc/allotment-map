@@ -5,12 +5,12 @@ App.initControls = function() {
   // Year selectors
   var ys = document.getElementById('sel-year-start');
   var ye = document.getElementById('sel-year-end');
-  for (var y = 1854; y <= 1960; y++) {
+  for (var y = 1854; y <= 1975; y++) {
     ys.add(new Option(y, y));
     ye.add(new Option(y, y));
   }
   ys.value = '1854';
-  ye.value = '1960';
+  ye.value = '1975';
 
   // States
   var ss = document.getElementById('sel-state');

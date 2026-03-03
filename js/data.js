@@ -48,7 +48,7 @@ App.runAnalysis = async function() {
 
   // Build where clause
   var clauses = [App.CATEGORIES[category]];
-  if (yearStart > 1854 || yearEnd < 1960) {
+  if (yearStart > 1854 || yearEnd < 1975) {
     clauses.push("signature_date >= timestamp '" + yearStart + "-01-01' AND signature_date < timestamp '" + (yearEnd + 1) + "-01-01'");
   }
   if (state) clauses.push("state = '" + state + "'");
@@ -139,7 +139,7 @@ App.runAnalysis = async function() {
 App.loadComparisonData = async function(yearStart, yearEnd, state) {
   // Load year-by-year counts for both trust and fee
   var timeClauses = [];
-  if (yearStart > 1854 || yearEnd < 1960) {
+  if (yearStart > 1854 || yearEnd < 1975) {
     timeClauses.push("signature_date >= timestamp '" + yearStart + "-01-01' AND signature_date < timestamp '" + (yearEnd + 1) + "-01-01'");
   }
   if (state) timeClauses.push("state = '" + state + "'");
@@ -187,7 +187,7 @@ App.binByYear = function(features) {
     var ts = f.attributes.signature_date;
     if (!ts) return;
     var year = new Date(ts).getFullYear();
-    if (year >= 1850 && year <= 1970) {
+    if (year >= 1850 && year <= 1975) {
       bins[year] = (bins[year] || 0) + f.attributes.cnt;
     }
   });
