@@ -9,7 +9,7 @@ App.buildTimelineIndex = function() {
     var ts = f.properties.signature_date;
     if (!ts) return;
     var year = new Date(ts).getFullYear();
-    if (year < 1850 || year > 1975) return;
+    if (year < 1850 || year > 2018) return;
     f._tlYear = year;
     App.timelineIndex.push(f);
   });

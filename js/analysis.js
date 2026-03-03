@@ -15,7 +15,7 @@ App.analyzePatterns = function() {
     if (p.state) states.add(p.state);
     if (p.signature_date) {
       var y = new Date(p.signature_date).getFullYear();
-      if (y >= 1850 && y <= 1970) years.push(y);
+      if (y >= 1850 && y <= 2018) years.push(y);
     }
   });
 
@@ -292,7 +292,7 @@ App.drawVelocityChart = function() {
     var p = f.properties;
     if (!p.preferred_name || !p.signature_date) return;
     var year = new Date(p.signature_date).getFullYear();
-    if (year < 1850 || year > 1970) return;
+    if (year < 1850 || year > 2018) return;
 
     if (!tribeYears[p.preferred_name]) tribeYears[p.preferred_name] = { trust: [], fee: [], forced: [] };
 
