@@ -23,9 +23,8 @@ App.initMap = function() {
   // Heatmap layer — leaflet.heat 0.2.0 always renders on overlayPane
   // so we style its canvas directly after init
   App.heatLayer = L.heatLayer([], {
-    radius: 18,
-    blur: 8,
-    maxZoom: 8,
+    radius: 20,
+    blur: 12,
     gradient: {
       0: 'rgba(0,0,0,0)',
       0.2: '#fef0d9',
@@ -65,18 +64,15 @@ App.initMap = function() {
   App.lastZoom = App.map.getZoom();
 };
 
-// Compute heatmap radius as 0.4 miles in pixels at current zoom
+// Heatmap radius: geographic (0.4 mi) when zoomed in, small pixel size when zoomed out
 App.updateHeatRadius = function() {
   if (!App.heatLayer) return;
   var zoom = App.map.getZoom();
-  // 0.4 miles in degrees latitude ≈ 0.4/69
-  var degPerMile = 1 / 69;
-  var milesRadius = 0.4;
-  var degRadius = milesRadius * degPerMile;
-  // pixels per degree at this zoom
-  var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
-  var radiusPx = Math.max(15, Math.round(degRadius * pixPerDeg));
-  var blurPx = Math.max(6, Math.round(radiusPx * 0.4));
+  // 0.4 miles in pixels at this zoom
+  var geoRadiusPx = (0.4 / 69) * (256 * Math.pow(2, zoom) / 360);
+  // Floor of 18px keeps points visible at low zoom without bloating
+  var radiusPx = Math.max(18, Math.round(geoRadiusPx));
+  var blurPx = Math.round(radiusPx * 0.5);
   App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx });
 };
 
@@ -167,9 +163,9 @@ App.renderMap = function(fitBounds) {
     }
   });
 
-  // Dynamic max scaling for heatmap
+  // Dynamic max scaling — sqrt-based so density variation is visible, not saturated
   if (heatPoints.length > 0) {
-    var dynamicMax = Math.max(1.0, Math.min(3.0, heatPoints.length / 500));
+    var dynamicMax = Math.max(1.0, Math.sqrt(heatPoints.length));
     App.heatLayer.setOptions({ max: dynamicMax });
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
