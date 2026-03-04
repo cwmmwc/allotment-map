@@ -40,6 +40,7 @@ App.initMap = function() {
   if (App.heatLayer._canvas) {
     App.heatLayer._canvas.style.opacity = '0.6';
     App.heatLayer._canvas.style.zIndex = '350';
+    App.heatLayer._canvas.style.pointerEvents = 'none';
   }
 
   App.pointLayer = L.layerGroup().addTo(App.map);
@@ -170,6 +171,7 @@ App.renderMap = function(fitBounds) {
   // Ensure heatmap canvas has correct opacity (leaflet.heat 0.2.0 ignores pane option)
   if (App.heatLayer._canvas) {
     App.heatLayer._canvas.style.opacity = '0.6';
+    App.heatLayer._canvas.style.pointerEvents = 'none';
   }
 
   // Legend counts
