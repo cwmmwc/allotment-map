@@ -32,5 +32,8 @@ window.App = {
   timelineMode: false,
   timelineIndex: [],
   timelineYear: null,
-  timelineInterval: null
+  timelineInterval: null,
+
+  // Classification mode: 'final' (default) or 'original' (show as originally issued)
+  classifyMode: 'final'
 };

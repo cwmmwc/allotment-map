@@ -32,3 +32,12 @@ App.classifyPatent = function(authority, forced_fee) {
   if (authority.includes('Allotment') || authority.includes('Partition')) return 'trust';
   return 'other';
 };
+
+// Classify by original issuance — forced-fee patents show as trust (what they were when issued).
+App.classifyPatentOriginal = function(authority) {
+  if (!authority) return 'other';
+  if (authority.includes('Fee')) return 'fee';
+  if (authority.includes('Trust') || authority.includes('Reissue')) return 'trust';
+  if (authority.includes('Allotment') || authority.includes('Partition')) return 'trust';
+  return 'other';
+};

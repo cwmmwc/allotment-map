@@ -31,6 +31,16 @@ App.initControls = function() {
     App.toggleTimeline(this.checked);
   });
 
+  // Original classification mode checkbox
+  document.getElementById('chk-original-class').addEventListener('change', function() {
+    App.classifyMode = this.checked ? 'original' : 'final';
+    if (App.timelineMode && App.timelineYear !== null) {
+      App.setTimelineYear(App.timelineYear);
+    } else {
+      App.renderMap(false);
+    }
+  });
+
   // Timeline track interactions
   App.initTimelineTrack();
 
@@ -120,10 +130,10 @@ App.renderCompare = function() {
     }
   });
 
-  // Sort by total patents descending
+  // Sort by total patents descending (fee already includes forced)
   var sorted = Object.entries(tribes).sort(function(a, b) {
-    var totalA = a[1].trust + a[1].fee + a[1].forced;
-    var totalB = b[1].trust + b[1].fee + b[1].forced;
+    var totalA = a[1].trust + a[1].fee;
+    var totalB = b[1].trust + b[1].fee;
     return totalB - totalA;
   });
 
@@ -133,8 +143,8 @@ App.renderCompare = function() {
 
   sorted.forEach(function(entry) {
     var name = entry[0], d = entry[1];
-    var total = d.trust + d.fee + d.forced;
-    var feePct = total > 0 ? ((d.fee + d.forced) / total * 100).toFixed(1) : '0.0';
+    var total = d.trust + d.fee;
+    var feePct = total > 0 ? (d.fee / total * 100).toFixed(1) : '0.0';
     d.years.sort(function(a, b) { return a - b; });
     var span = d.years.length > 0 ? d.years[0] + '–' + d.years[d.years.length - 1] : '—';
 

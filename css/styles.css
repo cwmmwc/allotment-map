@@ -555,3 +555,89 @@ body {
 
 .compare-table .highlight { color: var(--amber); }
 .compare-table .warn { color: var(--red); font-weight: 500; }
+
+/* ── Ratio bar in timeline ── */
+.timeline-ratio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  flex: 1;
+  max-width: 300px;
+}
+
+.ratio-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 2px;
+  overflow: hidden;
+  flex: 1;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+}
+
+.ratio-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.ratio-segment.trust { background: var(--trust-color); }
+.ratio-segment.fee { background: var(--fee-color); }
+.ratio-segment.forced { background: var(--forced-color); }
+
+.ratio-label {
+  font-size: 9px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Metrics overlay on map ── */
+.tl-metrics-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 400;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  pointer-events: none;
+  min-width: 130px;
+}
+
+.tl-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1px 0;
+}
+
+.tl-metric-k {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.tl-metric-v {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-metric-divider {
+  border-top: 1px solid var(--border);
+  margin-top: 3px;
+  padding-top: 3px;
+}
+
+/* ── Popup conversion note ── */
+.popup-conversion {
+  font-size: 9px;
+  color: var(--text-dim);
+  background: rgba(192,57,43,0.08);
+  border-radius: 2px;
+  padding: 2px 6px;
+  margin-bottom: 6px;
+}

@@ -87,9 +87,12 @@ App.renderMap = function(fitBounds) {
 
   var feeCount = 0, trustCount = 0, forcedCount = 0;
 
+  var useOriginal = App.timelineMode && App.classifyMode === 'original';
+  var classifyFn = useOriginal ? App.classifyPatentOriginal : App.classifyPatent;
+
   App.currentData.forEach(function(f) {
     var p = f.properties;
-    var type = App.classifyPatent(p.authority, p.forced_fee);
+    var type = useOriginal ? classifyFn(p.authority) : classifyFn(p.authority, p.forced_fee);
     var isForced = p.forced_fee === 'True';
 
     if (isForced) forcedCount++;
@@ -115,8 +118,12 @@ App.renderMap = function(fitBounds) {
 
     // Parcel polygons at zoom >= 9
     if (showPoints && showParcels && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
-      var fillColor, borderColor, fillOpacity;
-      if (isForced && highlightForced) {
+      var fillColor, borderColor, fillOpacity, dashArray = null, weight = 1;
+      if (useOriginal && isForced && type === 'trust') {
+        // Original mode: forced-fee shows as trust with amber dashed border hint
+        fillColor = '#2980b9'; borderColor = '#d4a017'; fillOpacity = 0.35;
+        dashArray = '4,3'; weight = 1.5;
+      } else if (isForced && highlightForced) {
         fillColor = '#c0392b'; borderColor = '#a93226'; fillOpacity = 0.5;
       } else if (type === 'fee') {
         fillColor = '#d4a017'; borderColor = '#b8860b'; fillOpacity = 0.4;
@@ -130,9 +137,10 @@ App.renderMap = function(fitBounds) {
         style: {
           fillColor: fillColor,
           color: borderColor,
-          weight: 1,
+          weight: weight,
           fillOpacity: fillOpacity,
-          opacity: 0.7
+          opacity: 0.7,
+          dashArray: dashArray
         }
       });
       parcel.bindPopup(function() { return App.makePopup(p); });
@@ -141,8 +149,11 @@ App.renderMap = function(fitBounds) {
 
     // Circle markers at zoom < 9 (or as fallback for Point geometry)
     if (showPoints && (!showParcels || f.geometry.type === 'Point')) {
-      var color, radius, opacity;
-      if (isForced && highlightForced) {
+      var color, radius, opacity, markerBorder = 'rgba(0,0,0,0.15)', markerWeight = 0.5;
+      if (useOriginal && isForced && type === 'trust') {
+        color = '#2980b9'; radius = 3.5; opacity = 0.5;
+        markerBorder = '#d4a017'; markerWeight = 1.5;
+      } else if (isForced && highlightForced) {
         color = '#c0392b'; radius = 4; opacity = 0.8;
       } else if (type === 'fee') {
         color = '#d4a017'; radius = 3; opacity = 0.5;
@@ -154,7 +165,7 @@ App.renderMap = function(fitBounds) {
 
       var marker = L.circleMarker([lat, lng], {
         radius: radius, fillColor: color, fillOpacity: opacity,
-        color: 'rgba(0,0,0,0.15)', weight: 0.5
+        color: markerBorder, weight: markerWeight
       });
 
       marker.bindPopup(function() { return App.makePopup(p); });
@@ -214,9 +225,19 @@ App.makePopup = function(p) {
   var tagClass = isForced ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
   var tagText = isForced ? 'Forced Fee' : (type === 'fee' ? 'Fee Patent' : 'Trust Patent');
 
+  // Show conversion path for forced-fee patents
+  var conversionNote = '';
+  if (isForced) {
+    var originalType = App.classifyPatentOriginal(p.authority);
+    if (originalType === 'trust') {
+      conversionNote = '<div class="popup-conversion">Issued as Trust \u2192 Converted to Fee (forced)</div>';
+    }
+  }
+
   return '<div>' +
     '<div class="popup-name">' + (p.full_name || 'Unknown') + '</div>' +
     '<span class="popup-tag ' + tagClass + '">' + tagText + '</span>' +
+    conversionNote +
     '<div class="popup-row"><span class="k">Tribe</span><span class="v">' + (p.preferred_name || '\u2014') + '</span></div>' +
     '<div class="popup-row"><span class="k">Date</span><span class="v">' + date + '</span></div>' +
     '<div class="popup-row"><span class="k">Authority</span><span class="v">' + (p.authority || '\u2014') + '</span></div>' +

@@ -21,6 +21,7 @@ App.toggleTimeline = function(enabled) {
   App.timelineMode = enabled;
   var bar = document.getElementById('timeline-bar');
   var overlay = document.getElementById('map-year-overlay');
+  var metrics = document.getElementById('tl-metrics-overlay');
   var appEl = document.querySelector('.app');
 
   if (enabled) {
@@ -30,6 +31,7 @@ App.toggleTimeline = function(enabled) {
     if (App.timelineIndex.length === 0) return; // no data
 
     bar.style.display = '';
+    metrics.style.display = '';
     appEl.classList.add('timeline-active');
     App.drawTimelineChart();
 
@@ -40,6 +42,7 @@ App.toggleTimeline = function(enabled) {
     App.pauseTimeline();
     bar.style.display = 'none';
     overlay.style.display = 'none';
+    metrics.style.display = 'none';
     appEl.classList.remove('timeline-active');
     App.timelineYear = null;
 
@@ -82,11 +85,11 @@ App.drawTimelineChart = function() {
   var years = [];
   for (var y = minYear; y <= maxYear; y++) years.push(y);
 
-  // Find max stacked value
+  // Find max stacked value (fee already includes forced)
   var maxVal = 1;
   years.forEach(function(y) {
     var b = bins[y] || { trust: 0, fee: 0, forced: 0 };
-    var total = b.trust + b.fee + b.forced;
+    var total = b.trust + b.fee;
     if (total > maxVal) maxVal = total;
   });
 
@@ -94,13 +97,13 @@ App.drawTimelineChart = function() {
   var chartH = H - 12; // reserve 12px at bottom for year labels
   var barW = W / years.length;
 
-  // Draw trust (blue, back) then fee+forced (amber, front) stacked
+  // Draw trust (blue, back) then fee (amber, front) stacked
   years.forEach(function(year, i) {
     var b = bins[year] || { trust: 0, fee: 0, forced: 0 };
     var x = i * barW;
 
     var trustH = (b.trust / maxVal) * (chartH - 2);
-    var feeH = ((b.fee + b.forced) / maxVal) * (chartH - 2);
+    var feeH = (b.fee / maxVal) * (chartH - 2);
 
     // Trust (blue) on bottom
     ctx.fillStyle = 'rgba(41, 128, 185, 0.5)';
@@ -176,7 +179,7 @@ App.setTimelineYear = function(year) {
   overlay.textContent = year;
   overlay.style.display = '';
 
-  // Update stats
+  // Update stats (fee already includes forced via classifyPatent)
   var trustCount = 0, feeCount = 0, forcedCount = 0;
   filtered.forEach(function(f) {
     var type = App.classifyPatent(f.properties.authority, f.properties.forced_fee);
@@ -185,14 +188,35 @@ App.setTimelineYear = function(year) {
     else if (type === 'trust') trustCount++;
   });
 
-  var total = trustCount + feeCount + forcedCount;
-  var feePct = total > 0 ? ((feeCount + forcedCount) / total * 100).toFixed(1) : '0.0';
+  var total = trustCount + feeCount;
+  var feePct = total > 0 ? (feeCount / total * 100).toFixed(1) : '0.0';
+  var voluntaryFee = feeCount - forcedCount;
+
   document.getElementById('tl-stats').textContent =
     'Through ' + year + ': ' +
     trustCount.toLocaleString() + ' trust, ' +
-    feeCount.toLocaleString() + ' fee, ' +
-    forcedCount.toLocaleString() + ' forced — ' +
+    feeCount.toLocaleString() + ' fee (' +
+    forcedCount.toLocaleString() + ' forced) — ' +
     feePct + '% fee';
+
+  // Update ratio bar
+  if (total > 0) {
+    var trustPct = (trustCount / total * 100);
+    var volFeePct = (voluntaryFee / total * 100);
+    var forcedPct = (forcedCount / total * 100);
+    document.getElementById('tl-ratio-trust').style.width = trustPct + '%';
+    document.getElementById('tl-ratio-fee').style.width = volFeePct + '%';
+    document.getElementById('tl-ratio-forced').style.width = forcedPct + '%';
+    document.getElementById('tl-ratio-label').textContent =
+      trustPct.toFixed(0) + '% trust / ' + feePct + '% fee';
+  }
+
+  // Update metrics overlay
+  document.getElementById('tl-metric-total').textContent = total.toLocaleString();
+  document.getElementById('tl-metric-trust').textContent = trustCount.toLocaleString();
+  document.getElementById('tl-metric-fee').textContent = voluntaryFee.toLocaleString();
+  document.getElementById('tl-metric-forced').textContent = forcedCount.toLocaleString();
+  document.getElementById('tl-metric-pct').textContent = feePct + '%';
 };
 
 // Playback controls

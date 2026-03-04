@@ -78,6 +78,7 @@
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-points" checked /> Show individual patents</label>
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-forced-highlight" checked /> Highlight forced fee</label>
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-timeline" /> Cumulative timeline mode</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-original-class" /> Show as originally issued</label>
     </div>
 
     <div class="ctrl-section">
@@ -97,6 +98,13 @@
     <div id="map"></div>
     <div class="map-overlay-stat" id="map-stat">Select filters and click <strong>Run Analysis</strong> to load patent data.</div>
     <div id="map-year-overlay" class="map-year-overlay" style="display:none;"></div>
+    <div id="tl-metrics-overlay" class="tl-metrics-overlay" style="display:none;">
+      <div class="tl-metric-row"><span class="tl-metric-k">Total</span><span class="tl-metric-v" id="tl-metric-total">—</span></div>
+      <div class="tl-metric-row"><span class="tl-metric-k" style="color:var(--trust-color)">Trust</span><span class="tl-metric-v" id="tl-metric-trust">—</span></div>
+      <div class="tl-metric-row"><span class="tl-metric-k" style="color:var(--fee-color)">Fee</span><span class="tl-metric-v" id="tl-metric-fee">—</span></div>
+      <div class="tl-metric-row"><span class="tl-metric-k" style="color:var(--forced-color)">Forced</span><span class="tl-metric-v" id="tl-metric-forced">—</span></div>
+      <div class="tl-metric-row tl-metric-divider"><span class="tl-metric-k">Out of Trust</span><span class="tl-metric-v" id="tl-metric-pct">—</span></div>
+    </div>
   </div>
 
   <!-- Timeline bar (hidden by default, shown when cumulative mode active) -->
@@ -109,6 +117,14 @@
         <option value="200" selected>5 yr/sec</option>
       </select>
       <span id="tl-year-label" style="font-weight:600;color:var(--text);margin-left:8px;">&mdash;</span>
+      <div id="tl-ratio" class="timeline-ratio">
+        <div class="ratio-bar">
+          <div class="ratio-segment trust" id="tl-ratio-trust"></div>
+          <div class="ratio-segment fee" id="tl-ratio-fee"></div>
+          <div class="ratio-segment forced" id="tl-ratio-forced"></div>
+        </div>
+        <span class="ratio-label" id="tl-ratio-label"></span>
+      </div>
       <span id="tl-stats" style="margin-left:auto;color:var(--text-dim);font-size:10px;">&mdash;</span>
     </div>
     <div class="timeline-track" id="tl-track">
