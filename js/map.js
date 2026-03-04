@@ -74,8 +74,8 @@ App.updateHeatRadius = function() {
   if (!App.heatLayer) return;
   var zoom = App.map.getZoom();
   var pixPerDeg = 256 * Math.pow(2, zoom) / 360;
-  var radiusPx = Math.max(15, Math.min(50, Math.round((2 / 69) * pixPerDeg)));
-  var blurPx = Math.max(5, Math.round(radiusPx * 0.4));
+  var radiusPx = Math.max(15, Math.round((2 / 69) * pixPerDeg));
+  var blurPx = Math.max(8, Math.round(radiusPx * 0.5));
 
   // maxZoom = current zoom + 1 disables leaflet.heat internal scaling
   App.heatLayer.setOptions({ radius: radiusPx, blur: blurPx, maxZoom: zoom + 1 });
@@ -180,7 +180,8 @@ App.renderMap = function(fitBounds) {
   });
 
   if (heatPoints.length > 0) {
-    App.heatLayer.setOptions({ max: Math.max(2, Math.sqrt(heatPoints.length) * 0.3) });
+    var dynamicMax = Math.max(1.0, heatPoints.length / 200);
+    App.heatLayer.setOptions({ max: dynamicMax });
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
   App.updateHeatRadius();

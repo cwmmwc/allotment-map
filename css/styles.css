@@ -241,7 +241,7 @@ body {
 .leaflet-control-attribution { display: none !important; }
 
 .heatmap-canvas {
-  opacity: 0.6 !important;
+  opacity: 0.45 !important;
   z-index: 350 !important;
   pointer-events: none !important;
 }
