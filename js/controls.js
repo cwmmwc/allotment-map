@@ -59,12 +59,19 @@ App.renderTribes = function() {
   var container = document.getElementById('tribe-list');
   container.innerHTML = '';
 
-  var sorted = Object.entries(App.tribeMap)
+  var allEntries = Object.entries(App.tribeMap)
     .filter(function(entry) { return !search || entry[0].toLowerCase().includes(search); })
-    .sort(function(a, b) { return b[1] - a[1]; })
-    .slice(0, 60);
+    .sort(function(a, b) { return b[1] - a[1]; });
 
-  sorted.forEach(function(entry) {
+  var totalTribes = Object.keys(App.tribeMap).length;
+  var countLabel = document.getElementById('tribe-count');
+  if (countLabel) {
+    countLabel.textContent = search
+      ? allEntries.length + ' of ' + totalTribes + ' tribes'
+      : totalTribes + ' tribes';
+  }
+
+  allEntries.forEach(function(entry) {
     var name = entry[0], count = entry[1];
     var isSelected = App.selectedTribes.indexOf(name) !== -1;
     var div = document.createElement('div');
