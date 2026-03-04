@@ -105,12 +105,12 @@ App.drawTimelineChart = function() {
     var trustH = (b.trust / maxVal) * (chartH - 2);
     var feeH = (b.fee / maxVal) * (chartH - 2);
 
-    // Trust (blue) on bottom
-    ctx.fillStyle = 'rgba(41, 128, 185, 0.5)';
+    // Trust (deep blue) on bottom
+    ctx.fillStyle = 'rgba(11, 83, 148, 0.6)';
     ctx.fillRect(x, chartH - 1 - trustH - feeH, Math.max(barW - 0.5, 1), trustH);
 
-    // Fee (amber) stacked on top of trust
-    ctx.fillStyle = 'rgba(212, 160, 23, 0.7)';
+    // Fee (orange) stacked on top of trust
+    ctx.fillStyle = 'rgba(224, 120, 0, 0.8)';
     ctx.fillRect(x, chartH - 1 - feeH, Math.max(barW - 0.5, 1), feeH);
   });
 

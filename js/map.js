@@ -120,15 +120,15 @@ App.renderMap = function(fitBounds) {
     if (showPoints && showParcels && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
       var fillColor, borderColor, fillOpacity, dashArray = null, weight = 1;
       if (useOriginal && isForced && type === 'trust') {
-        // Original mode: forced-fee shows as trust with amber dashed border hint
-        fillColor = '#2980b9'; borderColor = '#d4a017'; fillOpacity = 0.35;
+        // Original mode: forced-fee shows as trust with orange dashed border hint
+        fillColor = '#0b5394'; borderColor = '#e07800'; fillOpacity = 0.45;
         dashArray = '4,3'; weight = 1.5;
       } else if (isForced && highlightForced) {
-        fillColor = '#c0392b'; borderColor = '#a93226'; fillOpacity = 0.5;
+        fillColor = '#b71c1c'; borderColor = '#8b1515'; fillOpacity = 0.6;
       } else if (type === 'fee') {
-        fillColor = '#d4a017'; borderColor = '#b8860b'; fillOpacity = 0.4;
+        fillColor = '#e07800'; borderColor = '#bf5f00'; fillOpacity = 0.55;
       } else if (type === 'trust') {
-        fillColor = '#2980b9'; borderColor = '#1a6fa0'; fillOpacity = 0.35;
+        fillColor = '#0b5394'; borderColor = '#073d6e'; fillOpacity = 0.5;
       } else {
         fillColor = '#9a9490'; borderColor = '#6a6460'; fillOpacity = 0.25;
       }
@@ -151,14 +151,14 @@ App.renderMap = function(fitBounds) {
     if (showPoints && (!showParcels || f.geometry.type === 'Point')) {
       var color, radius, opacity, markerBorder = 'rgba(0,0,0,0.15)', markerWeight = 0.5;
       if (useOriginal && isForced && type === 'trust') {
-        color = '#2980b9'; radius = 3.5; opacity = 0.5;
-        markerBorder = '#d4a017'; markerWeight = 1.5;
+        color = '#0b5394'; radius = 3.5; opacity = 0.65;
+        markerBorder = '#e07800'; markerWeight = 1.5;
       } else if (isForced && highlightForced) {
-        color = '#c0392b'; radius = 4; opacity = 0.8;
+        color = '#b71c1c'; radius = 4; opacity = 0.85;
       } else if (type === 'fee') {
-        color = '#d4a017'; radius = 3; opacity = 0.5;
+        color = '#e07800'; radius = 3.5; opacity = 0.7;
       } else if (type === 'trust') {
-        color = '#2980b9'; radius = 2.5; opacity = 0.4;
+        color = '#0b5394'; radius = 3; opacity = 0.6;
       } else {
         color = '#9a9490'; radius = 2; opacity = 0.3;
       }

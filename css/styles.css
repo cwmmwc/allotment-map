@@ -7,17 +7,17 @@
   --text: #2c2825;
   --text-dim: #6a6460;
   --text-faint: #9a9490;
-  --amber: #d4a017;
-  --amber-dim: #b8860b;
-  --red: #c0392b;
-  --red-dim: #a93226;
-  --blue: #2980b9;
-  --blue-dim: #1a6fa0;
+  --amber: #e07800;
+  --amber-dim: #bf5f00;
+  --red: #b71c1c;
+  --red-dim: #8b1515;
+  --blue: #0b5394;
+  --blue-dim: #073d6e;
   --green: #27ae60;
   --green-dim: #1e8449;
-  --trust-color: #2980b9;
-  --fee-color: #d4a017;
-  --forced-color: #c0392b;
+  --trust-color: #0b5394;
+  --fee-color: #e07800;
+  --forced-color: #b71c1c;
   --serif: 'Source Serif 4', 'Newsreader', Georgia, serif;
   --mono: 'IBM Plex Mono', 'Menlo', monospace;
 }
@@ -397,9 +397,9 @@ body {
 .leaflet-popup-content { font-family: var(--mono); font-size: 11px; margin: 10px 12px !important; line-height: 1.6; }
 .popup-name { font-family: var(--serif); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
 .popup-tag { display: inline-block; padding: 1px 6px; border-radius: 2px; font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-.popup-tag.fee { background: rgba(212,160,23,0.15); color: var(--amber); }
-.popup-tag.trust { background: rgba(41,128,185,0.15); color: var(--trust-color); }
-.popup-tag.forced { background: rgba(192,57,43,0.15); color: var(--red); }
+.popup-tag.fee { background: rgba(224,120,0,0.15); color: var(--amber); }
+.popup-tag.trust { background: rgba(11,83,148,0.15); color: var(--trust-color); }
+.popup-tag.forced { background: rgba(183,28,28,0.15); color: var(--red); }
 .popup-row { display: flex; justify-content: space-between; gap: 12px; }
 .popup-row .k { color: var(--text-faint); }
 .popup-row .v { color: var(--text); text-align: right; }
