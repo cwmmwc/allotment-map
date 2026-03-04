@@ -240,6 +240,12 @@ body {
 .leaflet-container { background: var(--bg); }
 .leaflet-control-attribution { display: none !important; }
 
+.heatmap-canvas {
+  opacity: 0.6 !important;
+  z-index: 350 !important;
+  pointer-events: none !important;
+}
+
 .map-overlay-stat {
   position: absolute;
   bottom: 12px;

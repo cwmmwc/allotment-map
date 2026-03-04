@@ -36,11 +36,17 @@ App.initMap = function() {
     }
   }).addTo(App.map);
 
-  // Apply opacity and z-index to the heatmap canvas
+  // Monkey-patch leaflet.heat _reset to tag canvas with CSS class on every recreate
+  var origReset = App.heatLayer._reset;
+  App.heatLayer._reset = function() {
+    origReset.call(this);
+    if (this._canvas) {
+      this._canvas.classList.add('heatmap-canvas');
+    }
+  };
+  // Tag canvas if it already exists
   if (App.heatLayer._canvas) {
-    App.heatLayer._canvas.style.opacity = '0.6';
-    App.heatLayer._canvas.style.zIndex = '350';
-    App.heatLayer._canvas.style.pointerEvents = 'none';
+    App.heatLayer._canvas.classList.add('heatmap-canvas');
   }
 
   App.pointLayer = L.layerGroup().addTo(App.map);
@@ -178,12 +184,6 @@ App.renderMap = function(fitBounds) {
   }
   App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
   App.updateHeatRadius();
-
-  // Ensure heatmap canvas has correct opacity (leaflet.heat 0.2.0 ignores pane option)
-  if (App.heatLayer._canvas) {
-    App.heatLayer._canvas.style.opacity = '0.6';
-    App.heatLayer._canvas.style.pointerEvents = 'none';
-  }
 
   // Legend counts
   document.getElementById('leg-trust').textContent = trustCount.toLocaleString();
