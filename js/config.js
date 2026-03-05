@@ -35,5 +35,42 @@ window.App = {
   timelineInterval: null,
 
   // Classification mode: 'final' (default) or 'original' (show as originally issued)
-  classifyMode: 'final'
+  classifyMode: 'final',
+
+  // Aliases for cross-linking from Federal Register app
+  TRIBE_ALIASES: {
+    'Pine Ridge (Oglala Sioux)': 'Oglala Lakota',
+    'Flathead (Salish-Kootenai)': 'Flathead',
+    'Coeur d\'Alene': 'Coeur D\'alene',
+    'Fort Berthold': 'Mandan, Hidatsa, Arikara',
+    'Cheyenne-Arapaho': 'Cheyenne Arapaho',
+    'Sisseton-Wahpeton': 'Sisseton\u2013Wahpeton Oyate',
+    'Yankton Sioux': 'Yaknton Sioux Tribe',
+    'Devil\'s Lake Sioux': 'Devil\'s Lake Sioux',
+    'Fort Peck Assiniboine and Sioux': 'Assiniboine And Sioux',
+    'Fort Belknap': 'Assiniboine And Gros Ventre',
+    'Shoshone-Bannock': 'Shoshone And Bannock',
+    'Otoe-Missouria': 'Otoe And Missouria',
+    'Sac and Fox': 'Sac And Fox',
+    'Prairie Potawatomi': 'Prairie Band Of Potawatami Nation',
+    'Citizen Band Potawatomi': 'Citizen Potawatomi',
+    'Turtle Mountain Chippewa': 'Turtle Mountain Band Of Chippewa Indians'
+  }
+};
+
+// Find a tribe by exact match, alias, or case-insensitive partial match
+App.findTribe = function(name) {
+  if (App.tribeMap[name]) return name;
+  if (App.TRIBE_ALIASES[name] && App.tribeMap[App.TRIBE_ALIASES[name]]) {
+    return App.TRIBE_ALIASES[name];
+  }
+  var lower = name.toLowerCase();
+  var keys = Object.keys(App.tribeMap);
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase() === lower) return keys[i];
+  }
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase().indexOf(lower) !== -1) return keys[i];
+  }
+  return null;
 };

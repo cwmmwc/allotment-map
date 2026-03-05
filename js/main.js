@@ -6,6 +6,18 @@ App.init = async function() {
   await App.loadMetadata();
   App.initControls();
   document.getElementById('loading').classList.add('done');
+
+  // Read URL parameters for deep-linking (e.g. ?tribe=Blackfeet)
+  var params = new URLSearchParams(window.location.search);
+  var tribe = params.get('tribe');
+  if (tribe) {
+    var match = App.findTribe(tribe);
+    if (match) {
+      App.selectedTribes = [match];
+      App.renderTribes();
+      App.runAnalysis();
+    }
+  }
 };
 
 // Expose globals for onclick handlers in HTML
