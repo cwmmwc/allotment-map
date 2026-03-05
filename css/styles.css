@@ -199,6 +199,13 @@ body {
   flex-shrink: 0;
 }
 
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
 .legend-count {
   margin-left: auto;
   color: var(--text-faint);

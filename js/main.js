@@ -7,15 +7,24 @@ App.init = async function() {
   App.initControls();
   document.getElementById('loading').classList.add('done');
 
-  // Read URL parameters for deep-linking (e.g. ?tribe=Blackfeet)
+  // Read URL parameters for deep-linking
   var params = new URLSearchParams(window.location.search);
   var tribe = params.get('tribe');
+  var accession = params.get('accession');
+
   if (tribe) {
     var match = App.findTribe(tribe);
     if (match) {
       App.selectedTribes = [match];
       App.renderTribes();
-      App.runAnalysis();
+      // If we have an accession, skip fitting bounds to tribe — zoom straight to parcel
+      if (accession) {
+        App._skipFitBounds = true;
+      }
+      await App.runAnalysis();
+      if (accession) {
+        await App.zoomToAccession(accession);
+      }
     }
   }
 };

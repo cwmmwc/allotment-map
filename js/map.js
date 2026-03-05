@@ -62,6 +62,8 @@ App.initMap = function() {
       } else {
         App.renderMap(false);
       }
+      // Re-add highlight if present
+      App._addHighlight(false);
     }
     App.lastZoom = newZoom;
   });
@@ -183,7 +185,8 @@ App.renderMap = function(fitBounds) {
     var dynamicMax = Math.max(1.0, heatPoints.length / 200);
     App.heatLayer.setOptions({ max: dynamicMax });
   }
-  App.heatLayer.setLatLngs(showHeat ? heatPoints : []);
+  // Hide heatmap at parcel zoom levels — it muddies the parcel colors
+  App.heatLayer.setLatLngs(showHeat && !showParcels ? heatPoints : []);
   App.updateHeatRadius();
 
   // Legend counts
@@ -192,7 +195,8 @@ App.renderMap = function(fitBounds) {
   document.getElementById('leg-forced').textContent = forcedCount.toLocaleString();
 
   // Fit bounds only on initial load, not on zoom-triggered re-renders
-  if (fitBounds !== false) {
+  // Skip if we're about to zoom to a specific accession
+  if (fitBounds !== false && !App._skipFitBounds) {
     var allLats = [], allLngs = [];
     App.currentData.forEach(function(f) {
       var lat, lng;
@@ -217,6 +221,71 @@ App.renderMap = function(fitBounds) {
 
   var modeLabel = showParcels ? 'parcels' : 'markers';
   document.getElementById('map-stat').innerHTML = '<strong>' + App.currentData.length.toLocaleString() + '</strong> patents displayed (' + modeLabel + ')';
+};
+
+// Zoom to a specific patent by accession number (for deep-linking)
+App.zoomToAccession = async function(accession) {
+  App._skipFitBounds = false;
+
+  var res = await App.query({
+    where: "accession_number = '" + accession.replace(/'/g, "''") + "'",
+    outFields: 'OBJECTID,accession_number,preferred_name,full_name,signature_date,authority,state,county,forced_fee,cancelled_doc,aliquot_parts,section_number,township_number,range_number',
+    returnGeometry: true,
+    f: 'geojson'
+  });
+
+  if (!res.features || res.features.length === 0) {
+    document.getElementById('status').textContent += ' | Patent ' + accession + ' not found in map data.';
+    return;
+  }
+
+  var feature = res.features[0];
+  var p = feature.properties;
+
+  var lat, lng;
+  if (feature.geometry.type === 'Point') {
+    lng = feature.geometry.coordinates[0];
+    lat = feature.geometry.coordinates[1];
+  } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+    var coords = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates[0][0];
+    lng = coords.reduce(function(s, c) { return s + c[0]; }, 0) / coords.length;
+    lat = coords.reduce(function(s, c) { return s + c[1]; }, 0) / coords.length;
+  }
+
+  if (lat && lng) {
+    // Save highlight so it can be re-added after zoomend re-renders
+    App._highlight = {
+      geometry: feature.geometry,
+      props: p
+    };
+
+    App.map.setView([lat, lng], 14);
+
+    // Add highlight after map settles
+    App.map.once('moveend', function() {
+      App._addHighlight(true);
+    });
+  }
+};
+
+// Add the saved highlight parcel to the map
+App._addHighlight = function(openPopup) {
+  if (!App._highlight) return;
+  if (App._highlightLayer) {
+    App.map.removeLayer(App._highlightLayer);
+  }
+  App._highlightLayer = L.geoJSON(App._highlight.geometry, {
+    style: {
+      fillColor: '#ffff00',
+      color: '#d00',
+      weight: 4,
+      fillOpacity: 0.6,
+      opacity: 1
+    }
+  });
+  App._highlightLayer.bindPopup(App.makePopup(App._highlight.props));
+  App._highlightLayer.addTo(App.map);
+  if (openPopup) App._highlightLayer.openPopup();
 };
 
 App.makePopup = function(p) {
