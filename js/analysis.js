@@ -26,20 +26,17 @@ App.analyzePatterns = function() {
   document.getElementById('s-states').textContent = states.size;
   document.getElementById('s-span').textContent = years.length > 0 ? years[0] + '\u2013' + years[years.length - 1] : '\u2014';
 
-  // ── Temporal distribution ──
-  App.drawTemporalChart(years);
-
-  // ── Trust vs Fee comparison ──
-  App.drawCompareChart();
-
-  // ── Spatial clustering ──
-  App.analyzeSpatialClustering();
-
-  // ── Conversion velocity by tribe ──
-  App.drawVelocityChart();
-
-  // ── County breakdown ──
-  App.drawCountyBars();
+  // Each chart is independent — catch errors so one failure doesn't kill the rest
+  var charts = [
+    ['Temporal', function() { App.drawTemporalChart(years); }],
+    ['Compare', App.drawCompareChart],
+    ['ForcedRate', App.drawForcedRateChart],
+    ['Velocity', App.drawVelocityChart],
+    ['Counties', App.drawCountyBars]
+  ];
+  charts.forEach(function(c) {
+    try { c[1](); } catch (e) { console.error('Chart error (' + c[0] + '):', e); }
+  });
 };
 
 App.drawTemporalChart = function(years) {
@@ -58,7 +55,7 @@ App.drawTemporalChart = function(years) {
   years.forEach(function(y) { bins[y] = (bins[y] || 0) + 1; });
 
   var allYears = [];
-  var minY = Math.min.apply(null, years), maxY = Math.max.apply(null, years);
+  var minY = years[0], maxY = years[years.length - 1];
   for (var y = minY; y <= maxY; y++) allYears.push(y);
 
   var maxCount = Math.max.apply(null, allYears.map(function(y) { return bins[y] || 0; }).concat([1]));
@@ -223,79 +220,150 @@ App.drawCompareChart = function() {
   document.getElementById('insight-compare').innerHTML = insight;
 };
 
-App.analyzeSpatialClustering = function() {
-  // Compute nearest-neighbor statistics
-  var points = [];
-  App.currentData.forEach(function(f) {
-    var lat, lng;
-    if (f.geometry.type === 'Point') {
-      lng = f.geometry.coordinates[0];
-      lat = f.geometry.coordinates[1];
-    } else if (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') {
-      var coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
-      lng = coords.reduce(function(s, c) { return s + c[0]; }, 0) / coords.length;
-      lat = coords.reduce(function(s, c) { return s + c[1]; }, 0) / coords.length;
-    }
-    if (lat && lng) points.push([lat, lng]);
-  });
-
-  if (points.length < 20) {
-    document.getElementById('insight-spatial').innerHTML = 'Not enough data points for spatial analysis.';
+App.drawForcedRateChart = function() {
+  // Uses pre-loaded stat query data (all tribes, no record limit)
+  var byTribe = App.analysisCache.forcedFeeByTribe;
+  if (!byTribe) {
+    document.getElementById('insight-forced-rate').innerHTML = 'No forced fee rate data available.';
     return;
   }
 
-  // Sample for performance (NNI on full set too expensive)
-  var sampleSize = Math.min(points.length, 500);
-  var sample = [];
-  var used = new Set();
-  while (sample.length < sampleSize) {
-    var idx = Math.floor(Math.random() * points.length);
-    if (!used.has(idx)) { sample.push(points[idx]); used.add(idx); }
+  // Build rows: tribes with at least some fee patents
+  var rows = Object.entries(byTribe)
+    .filter(function(e) { return e[1].fee >= 5; })
+    .map(function(e) {
+      var d = e[1];
+      return {
+        tribe: e[0],
+        fee: d.fee,
+        forced: d.forced,
+        secretarial: d.secretarial || 0,
+        // "Regular" fee = total fee minus forced minus secretarial transfers
+        regular: Math.max(0, d.fee - d.forced - (d.secretarial || 0)),
+        rate: d.fee > 0 ? d.forced / d.fee : 0
+      };
+    });
+
+  // Sort by forced count descending (most affected reservations first)
+  rows.sort(function(a, b) { return b.forced - a.forced; });
+
+  var canvas = document.getElementById('chart-forced-rate');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+
+  var maxRows = Math.min(rows.length, 20);
+  var rowH = 18;
+  var chartH = maxRows * rowH + 36;
+  canvas.height = chartH * dpr;
+  canvas.style.height = chartH + 'px';
+  ctx.scale(dpr, dpr);
+  var W = rect.width;
+
+  ctx.clearRect(0, 0, W, chartH);
+
+  if (rows.length === 0) {
+    document.getElementById('insight-forced-rate').innerHTML = 'No tribes with fee patent data in current selection.';
+    return;
   }
 
-  // Compute mean nearest-neighbor distance
-  var totalNND = 0;
-  sample.forEach(function(p1) {
-    var minDist = Infinity;
-    sample.forEach(function(p2) {
-      if (p1 === p2) return;
-      var d = App.haversine(p1[0], p1[1], p2[0], p2[1]);
-      if (d < minDist) minDist = d;
+  var labelW = 140;
+  var barArea = W - labelW - 120;
+
+  var displayRows = rows.slice(0, maxRows);
+  var maxFee = Math.max.apply(null, displayRows.map(function(r) { return r.fee; }).concat([1]));
+
+  // Legend row at top
+  var legY = 4;
+  ctx.font = '8px "IBM Plex Mono"';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(212, 160, 23, 0.5)';
+  ctx.fillRect(labelW, legY, 8, 8);
+  ctx.fillStyle = '#9a9490';
+  ctx.fillText('Fee patent', labelW + 12, legY + 7);
+  ctx.fillStyle = 'rgba(90, 130, 180, 0.6)';
+  ctx.fillRect(labelW + 72, legY, 8, 8);
+  ctx.fillStyle = '#9a9490';
+  ctx.fillText('Sec. transfer', labelW + 84, legY + 7);
+  ctx.fillStyle = 'rgba(192, 57, 43, 0.75)';
+  ctx.fillRect(labelW + 160, legY, 8, 8);
+  ctx.fillStyle = '#9a9490';
+  ctx.fillText('Forced fee', labelW + 172, legY + 7);
+
+  displayRows.forEach(function(row, i) {
+    var y = i * rowH + 22;
+
+    // Tribe label (truncated)
+    var displayName = row.tribe.length > 20 ? row.tribe.substring(0, 19) + '\u2026' : row.tribe;
+    ctx.fillStyle = '#6a6460';
+    ctx.font = '9px "IBM Plex Mono"';
+    ctx.textAlign = 'right';
+    ctx.fillText(displayName, labelW - 6, y + 12);
+
+    // Stacked bar: regular fee | secretarial transfer | forced fee
+    var regularW = (row.regular / maxFee) * barArea;
+    var secW = (row.secretarial / maxFee) * barArea;
+    var forcedW = (row.forced / maxFee) * barArea;
+
+    var x = labelW;
+    // Regular fee
+    ctx.fillStyle = 'rgba(212, 160, 23, 0.5)';
+    ctx.fillRect(x, y, regularW, rowH - 4);
+    x += regularW;
+    // Secretarial transfer
+    ctx.fillStyle = 'rgba(90, 130, 180, 0.6)';
+    ctx.fillRect(x, y, secW, rowH - 4);
+    x += secW;
+    // Forced fee
+    ctx.fillStyle = 'rgba(192, 57, 43, 0.75)';
+    ctx.fillRect(x, y, forcedW, rowH - 4);
+    x += forcedW;
+
+    // Label: forced / fee total (rate%)
+    var pct = (row.rate * 100).toFixed(0);
+    ctx.fillStyle = row.rate > 0.3 ? '#c0392b' : '#9a9490';
+    ctx.textAlign = 'left';
+    ctx.fillText(row.forced + ' forced / ' + row.fee.toLocaleString() + ' fee (' + pct + '%)', x + 4, y + 12);
+  });
+
+  // Insight
+  var withForced = rows.filter(function(r) { return r.forced > 0; });
+  var totalForced = rows.reduce(function(s, r) { return s + r.forced; }, 0);
+  var totalFee = rows.reduce(function(s, r) { return s + r.fee; }, 0);
+  var totalSec = rows.reduce(function(s, r) { return s + r.secretarial; }, 0);
+  var overallRate = totalFee > 0 ? (totalForced / totalFee * 100).toFixed(1) : '0';
+
+  var highRate = withForced.filter(function(r) { return r.rate > 0.3 && r.fee >= 20; });
+  highRate.sort(function(a, b) { return b.rate - a.rate; });
+
+  var lowForced = withForced.filter(function(r) { return r.rate < 0.05 && r.fee >= 50; });
+  lowForced.sort(function(a, b) { return a.rate - b.rate; });
+
+  var parts = [];
+  parts.push('<span style="font-size:9px;color:var(--text-faint);">(Complete dataset \u2014 not limited by map sample.)</span><br>' +
+    'Across all reservations: <strong class="highlight">' + totalForced.toLocaleString() + '</strong> forced fee out of <strong>' + totalFee.toLocaleString() + '</strong> total fee patents (<strong>' + overallRate + '%</strong>).');
+
+  if (totalSec > 0) {
+    parts.push('Includes <strong>' + totalSec.toLocaleString() + '</strong> secretarial transfers (Trust\u2192Fee by administrative order, shown separately).');
+  }
+
+  if (highRate.length > 0) {
+    var names = highRate.slice(0, 3).map(function(r) {
+      return '<strong>' + r.tribe + '</strong> (' + r.forced + '/' + r.fee.toLocaleString() + ', ' + (r.rate * 100).toFixed(0) + '%)';
     });
-    totalNND += minDist;
-  });
+    parts.push('Highest forced fee rates: ' + names.join(', ') + '.');
+  }
 
-  var meanNND = totalNND / sampleSize;
+  if (lowForced.length > 0) {
+    var names = lowForced.slice(0, 3).map(function(r) {
+      return '<strong>' + r.tribe + '</strong> (' + r.forced + '/' + r.fee.toLocaleString() + ', ' + (r.rate * 100).toFixed(1) + '%)';
+    });
+    parts.push('Lowest rates among active reservations: ' + names.join(', ') + '.');
+  }
 
-  // Expected NND for random distribution: 0.5 / sqrt(density)
-  var lats = sample.map(function(p) { return p[0]; }), lngs = sample.map(function(p) { return p[1]; });
-  var areaKm2 = (Math.max.apply(null, lats) - Math.min.apply(null, lats)) * 111 * (Math.max.apply(null, lngs) - Math.min.apply(null, lngs)) * 85;
-  var density = sampleSize / Math.max(areaKm2, 1);
-  var expectedNND = 0.5 / Math.sqrt(density);
-  var nni = meanNND / expectedNND;
-
-  var clusterLevel = nni < 0.5 ? 'very strongly clustered' :
-    nni < 0.7 ? 'strongly clustered' :
-    nni < 0.9 ? 'moderately clustered' :
-    nni < 1.1 ? 'approximately random' :
-    'dispersed';
-
-  // County concentration
-  var counties = {};
-  App.currentData.forEach(function(f) {
-    var c = f.properties.county;
-    if (c) counties[c] = (counties[c] || 0) + 1;
-  });
-  var sortedCounties = Object.entries(counties).sort(function(a, b) { return b[1] - a[1]; });
-  var topCounty = sortedCounties[0];
-  var topCountyPct = topCounty ? Math.round(topCounty[1] / App.currentData.length * 100) : 0;
-
-  document.getElementById('insight-spatial').innerHTML =
-    'Nearest Neighbor Index: <strong class="highlight">' + nni.toFixed(3) + '</strong> \u2014 spatial distribution is <strong>' + clusterLevel + '</strong>. ' +
-    'Mean nearest-neighbor distance: <strong>' + meanNND.toFixed(1) + ' km</strong>. ' +
-    (topCounty ? '<br>Most concentrated in <strong>' + topCounty[0] + ' County</strong> (' + topCountyPct + '% of patents). ' : '') +
-    (nni < 0.7 ? '<span class="warn">Strong clustering suggests systematic, geographically targeted patent issuance rather than organic individual applications.</span>' : '') +
-    (sortedCounties.length > 2 ? '<br>Top 3 counties hold <strong>' + Math.round((sortedCounties.slice(0,3).reduce(function(s,c) { return s+c[1]; },0) / App.currentData.length) * 100) + '%</strong> of all patents in view.' : '');
+  document.getElementById('insight-forced-rate').innerHTML = parts.join(' ');
 };
 
 App.drawVelocityChart = function() {
