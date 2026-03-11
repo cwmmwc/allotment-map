@@ -64,16 +64,16 @@ App.runAnalysis = async function() {
   var countRes = await App.query({ where: where, returnCountOnly: true });
   var total = countRes.count || 0;
 
-  // For large queries (nationwide), use centroids only for performance
+  // For large queries (> 25k), use centroids only — much smaller payload
   var useCentroidsOnly = total > App.FETCH_LIMIT;
-  var maxFetch = useCentroidsOnly ? App.FETCH_LIMIT_NATIONWIDE : App.FETCH_LIMIT;
+  // Larger batches for centroids (no geometry), smaller for full polygons
+  var batchSize = useCentroidsOnly ? 5000 : 2000;
 
-  // Fetch features
+  // Fetch all features — no cap
   var allFeatures = [];
   var offset = 0;
-  var batchSize = 2000;
 
-  while (offset < Math.min(total, maxFetch)) {
+  while (offset < total) {
     var queryParams = {
       where: where,
       outFields: 'OBJECTID,accession_number,preferred_name,full_name,signature_date,authority,state,county,forced_fee,cancelled_doc,aliquot_parts,section_number,township_number,range_number',
@@ -81,7 +81,6 @@ App.runAnalysis = async function() {
       resultOffset: offset
     };
     if (useCentroidsOnly) {
-      // Esri JSON with centroids — much smaller payload than full polygons
       queryParams.returnGeometry = false;
       queryParams.returnCentroid = true;
       queryParams.f = 'json';
@@ -93,7 +92,6 @@ App.runAnalysis = async function() {
     var res = await App.query(queryParams);
 
     if (useCentroidsOnly) {
-      // Convert Esri JSON centroids to GeoJSON-like features
       if (!res.features || res.features.length === 0) break;
       res.features.forEach(function(f) {
         if (f.centroid) {
@@ -111,19 +109,16 @@ App.runAnalysis = async function() {
       offset += res.features.length;
     }
 
-    var pct = Math.round((offset / Math.min(total, maxFetch)) * 100);
-    document.getElementById('status').textContent = 'Loading\u2026 ' + pct + '% (' + allFeatures.length.toLocaleString() + ')';
+    var pct = Math.round((offset / total) * 100);
+    document.getElementById('status').textContent = 'Loading\u2026 ' + pct + '% (' + allFeatures.length.toLocaleString() + ' of ' + total.toLocaleString() + ')';
   }
 
   App.currentData = allFeatures;
-  var statusText = App.currentData.length.toLocaleString() + ' of ' + total.toLocaleString() + ' loaded';
-  if (useCentroidsOnly) statusText += ' (centroids — zoom in and select a tribe for parcels)';
+  var statusText = App.currentData.length.toLocaleString() + ' patents loaded';
+  if (useCentroidsOnly) statusText += ' (centroids \u2014 select a tribe for parcels)';
   document.getElementById('status').textContent = statusText;
 
-  // Also load comparison data (trust vs fee) for the same filters
-  await App.loadComparisonData(yearStart, yearEnd, state);
-
-  // Render everything
+  // Render map and basic analysis immediately — don't wait for stat queries
   App.renderMap();
   App.analyzePatterns();
   App.renderCompare();
@@ -132,8 +127,20 @@ App.runAnalysis = async function() {
   App.buildTimelineIndex();
   if (App.timelineMode && App.timelineIndex.length > 0) {
     App.drawTimelineChart();
-    App.setTimelineYear(App.timelineIndex[0]._tlYear);
+    App.setTimelineYear(App.timelineIndex[0]._tlYear - 10);
   }
+
+  // Fire stat queries in parallel (independent of loaded data)
+  // These update the comparison chart and forced fee rate chart when they arrive
+  Promise.all([
+    App.loadComparisonData(yearStart, yearEnd, state).then(function() {
+      App.drawCompareChart();
+    }).catch(function(e) { console.warn('Comparison data failed:', e); }),
+
+    App.loadForcedFeeByTribe(yearStart, yearEnd, state).then(function() {
+      App.drawForcedRateChart();
+    }).catch(function(e) { console.warn('Forced fee stats failed:', e); })
+  ]);
 };
 
 App.loadComparisonData = async function(yearStart, yearEnd, state) {
@@ -192,4 +199,66 @@ App.binByYear = function(features) {
     }
   });
   return bins;
+};
+
+// Query fee and forced fee counts per tribe — uses stat queries so no record limit
+App.loadForcedFeeByTribe = async function(yearStart, yearEnd, state) {
+  var timeClauses = [];
+  if (yearStart > 1854 || yearEnd < 2018) {
+    timeClauses.push("signature_date >= timestamp '" + yearStart + "-01-01' AND signature_date < timestamp '" + (yearEnd + 1) + "-01-01'");
+  }
+  if (state) timeClauses.push("state = '" + state + "'");
+  if (App.selectedTribes.length === 1) {
+    timeClauses.push("preferred_name = '" + App.selectedTribes[0].replace(/'/g, "''") + "'");
+  } else if (App.selectedTribes.length > 1) {
+    timeClauses.push("preferred_name IN (" + App.selectedTribes.map(function(t) { return "'" + t.replace(/'/g, "''") + "'"; }).join(',') + ")");
+  }
+  var extraWhere = timeClauses.length ? ' AND ' + timeClauses.join(' AND ') : '';
+
+  // Fee patents per tribe (all fee patents including forced)
+  var feeRes = await App.query({
+    where: App.CATEGORIES.fee + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'preferred_name',
+    orderByFields: 'cnt DESC'
+  });
+
+  // Forced fee patents per tribe
+  var forcedRes = await App.query({
+    where: App.CATEGORIES.forced + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'preferred_name',
+    orderByFields: 'cnt DESC'
+  });
+
+  // Secretarial transfers (Trust to Fee) per tribe — administrative conversions
+  var secRes = await App.query({
+    where: "authority = 'Indian Trust to Fee'" + extraWhere,
+    outStatistics: [{statisticType:'count',onStatisticField:'OBJECTID',outStatisticFieldName:'cnt'}],
+    groupByFieldsForStatistics: 'preferred_name',
+    orderByFields: 'cnt DESC'
+  });
+
+  // Build lookup: tribe → { fee, forced, secretarial }
+  var byTribe = {};
+  (feeRes.features || []).forEach(function(f) {
+    var name = f.attributes.preferred_name;
+    if (!name) return;
+    if (!byTribe[name]) byTribe[name] = { fee: 0, forced: 0, secretarial: 0 };
+    byTribe[name].fee = f.attributes.cnt;
+  });
+  (forcedRes.features || []).forEach(function(f) {
+    var name = f.attributes.preferred_name;
+    if (!name) return;
+    if (!byTribe[name]) byTribe[name] = { fee: 0, forced: 0, secretarial: 0 };
+    byTribe[name].forced = f.attributes.cnt;
+  });
+  (secRes.features || []).forEach(function(f) {
+    var name = f.attributes.preferred_name;
+    if (!name) return;
+    if (!byTribe[name]) byTribe[name] = { fee: 0, forced: 0, secretarial: 0 };
+    byTribe[name].secretarial = f.attributes.cnt;
+  });
+
+  App.analysisCache.forcedFeeByTribe = byTribe;
 };

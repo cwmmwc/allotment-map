@@ -26,6 +26,34 @@ App.initControls = function() {
     App.renderTribes();
   });
 
+  // Name search
+  var nameInput = document.getElementById('name-search');
+  var nameBtn = document.getElementById('name-search-btn');
+  if (nameBtn && nameInput) {
+    nameBtn.addEventListener('click', function() { App.searchByName(nameInput.value); });
+    nameInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') App.searchByName(nameInput.value);
+    });
+  }
+
+  // Reservation boundaries checkbox
+  document.getElementById('chk-reservations').addEventListener('change', function() {
+    if (this.checked) {
+      App._reservationLayer.addTo(App.map);
+    } else {
+      App.map.removeLayer(App._reservationLayer);
+    }
+  });
+
+  // Rankin 1907 map checkbox
+  document.getElementById('chk-rankin').addEventListener('change', function() {
+    if (this.checked) {
+      App._rankinLayer.addTo(App.map);
+    } else {
+      App.map.removeLayer(App._rankinLayer);
+    }
+  });
+
   // Timeline checkbox
   document.getElementById('chk-timeline').addEventListener('change', function() {
     App.toggleTimeline(this.checked);
@@ -172,4 +200,118 @@ App.renderCompare = function() {
 
   html += '</tbody></table>';
   container.innerHTML = html;
+};
+
+// ═══════════════════════════════════════════════
+// Name Search
+// ═══════════════════════════════════════════════
+App.searchByName = async function(name) {
+  var container = document.getElementById('name-results');
+  name = name.trim();
+  if (!name) { container.innerHTML = ''; return; }
+
+  container.innerHTML = '<div class="name-results-status">Searching\u2026</div>';
+
+  // Query the feature service for matching names (case-insensitive LIKE)
+  var safeName = name.replace(/'/g, "''").replace(/%/g, '');
+  var where = "UPPER(full_name) LIKE '%" + safeName.toUpperCase() + "%'";
+
+  var res = await App.query({
+    where: where,
+    outFields: 'OBJECTID,accession_number,preferred_name,full_name,signature_date,authority,state,county,forced_fee,section_number,township_number,range_number,aliquot_parts',
+    returnGeometry: false,
+    returnCentroid: true,
+    resultRecordCount: 50,
+    orderByFields: 'full_name ASC'
+  });
+
+  var features = res.features || [];
+  if (features.length === 0) {
+    container.innerHTML = '<div class="name-results-status">No patents found for "' + name + '"</div>';
+    return;
+  }
+
+  // Collect unique tribes from results for context loading
+  var resultTribes = {};
+  features.forEach(function(f) {
+    var t = f.attributes.preferred_name;
+    if (t) resultTribes[t] = true;
+  });
+  App._searchResultTribes = Object.keys(resultTribes);
+  App._searchResultAccessions = features.map(function(f) { return f.attributes.accession_number; }).filter(Boolean);
+
+  var tribeLabel = App._searchResultTribes.length === 1
+    ? App._searchResultTribes[0]
+    : App._searchResultTribes.length + ' tribes';
+
+  var contextChecked = App._nameSearchContext ? ' checked' : '';
+  var html = '<div class="name-results-status">' + features.length + (features.length === 50 ? '+' : '') + ' results</div>';
+  html += '<label class="ctrl-checkbox name-context-toggle"><input type="checkbox" id="chk-name-context"' + contextChecked + ' /> Show all ' + tribeLabel + ' patents</label>';
+
+  features.forEach(function(f) {
+    var a = f.attributes;
+    var date = a.signature_date ? new Date(a.signature_date).getFullYear() : '\u2014';
+    var type = App.classifyPatent(a.authority, a.forced_fee);
+    var isForced = a.forced_fee === 'True';
+    var tagClass = isForced ? 'forced' : (type === 'fee' ? 'fee' : 'trust');
+    var tagText = isForced ? 'Forced' : (type === 'fee' ? 'Fee' : 'Trust');
+    var loc = 'T' + (a.township_number || '?') + ' R' + (a.range_number || '?') + ' \u00a7' + (a.section_number || '?');
+
+    html += '<div class="name-result" data-accession="' + (a.accession_number || '') + '">';
+    html += '<div class="name-result-name">' + (a.full_name || 'Unknown') + ' <span class="name-result-tag ' + tagClass + '">' + tagText + '</span></div>';
+    html += '<div class="name-result-detail">' + (a.preferred_name || '') + ' \u00b7 ' + date + ' \u00b7 ' + loc + ' \u00b7 ' + (a.state || '') + (a.county ? ', ' + a.county : '') + '</div>';
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+
+  // Click handler for results
+  container.querySelectorAll('.name-result').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var accession = this.getAttribute('data-accession');
+      if (accession) App.zoomToAccession(accession);
+    });
+  });
+
+  // Context toggle handler
+  var contextChk = document.getElementById('chk-name-context');
+  if (contextChk) {
+    contextChk.addEventListener('change', function() {
+      App._nameSearchContext = this.checked;
+      if (this.checked) {
+        App.loadNameSearchContext();
+      } else {
+        // Remove context layer, keep just the highlight
+        if (App._contextLayer) {
+          App.map.removeLayer(App._contextLayer);
+          App._contextLayer = null;
+        }
+      }
+    });
+    // If toggle was already on (re-search), load context immediately
+    if (App._nameSearchContext) {
+      App.loadNameSearchContext();
+    }
+  }
+};
+
+// Load all patents for the tribe(s) found in name search results
+App.loadNameSearchContext = async function() {
+  if (!App._searchResultTribes || App._searchResultTribes.length === 0) return;
+
+  document.getElementById('status').textContent = 'Loading context\u2026';
+
+  // Select the tribe(s) and run a full analysis
+  App.selectedTribes = App._searchResultTribes.slice();
+  App.renderTribes();
+
+  // Skip fit bounds — we want to stay near the searched patent
+  App._skipFitBounds = true;
+  await App.runAnalysis();
+  App._skipFitBounds = false;
+
+  // Re-add the highlight on top so the searched patent stays visible
+  App._addHighlight(false);
+
+  document.getElementById('status').textContent = App.currentData.length.toLocaleString() + ' patents loaded (context)';
 };

@@ -7,18 +7,42 @@ App.initMap = function() {
     zoom: 5,
     preferCanvas: true,
     zoomControl: true,
-    maxZoom: 16,
+    maxZoom: 19,
     minZoom: 3
   });
 
-  // ESRI Light Gray basemap
-  L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 16
-  }).addTo(App.map);
-
-  L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+  // Basemap layers
+  App._basemaps = {
+    topo: L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri'
+    }),
+    lightGray: L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 16
+    })
+  };
+  App._basemapRef = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 16, pane: 'overlayPane'
-  }).addTo(App.map);
+  });
+
+  // Default to topo
+  App._basemaps.topo.addTo(App.map);
+  App._activeBasemap = 'topo';
+
+  // Federal Indian Reservations overlay (Census TIGERweb AIANNHA, layer 2)
+  App._reservationLayer = L.tileLayer('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/AIANNHA/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    opacity: 0.5,
+    attribution: 'US Census TIGERweb'
+  });
+
+  // Rankin Map of the Allotted Land of the Crow Reservation 1907 (UVA Library)
+  App._rankinLayer = L.tileLayer('https://tiles.arcgis.com/tiles/8k2PygHqghVevhzy/arcgis/rest/services/Rankin_Map_of_the_Allotted_Land_of_the_Crow_Reservation_1907/MapServer/tile/{z}/{y}/{x}', {
+    minZoom: 6,
+    maxZoom: 18,
+    opacity: 0.7,
+    attribution: 'UVA Library'
+  });
 
   // Heatmap layer — leaflet.heat 0.2.0 always renders on overlayPane
   // so we style its canvas directly after init
@@ -98,6 +122,23 @@ App.renderMap = function(fitBounds) {
   var useOriginal = App.timelineMode && App.classifyMode === 'original';
   var classifyFn = useOriginal ? App.classifyPatentOriginal : App.classifyPatent;
 
+  // Build section-level forced fee counts for popup context
+  var sectionCounts = {};
+  App.currentData.forEach(function(f) {
+    var p = f.properties;
+    if (p.forced_fee !== 'True') return;
+    var twp = p.township_number, rng = p.range_number, sec = p.section_number;
+    if (!twp || !rng || !sec) return;
+    var key = 'T' + twp + 'R' + rng + ' \u00a7' + sec;
+    if (!sectionCounts[key]) sectionCounts[key] = { forced: 0, allottees: new Set() };
+    sectionCounts[key].forced++;
+    if (p.full_name) sectionCounts[key].allottees.add(p.full_name);
+  });
+  App.analysisCache.sectionCounts = sectionCounts;
+
+  // Two-pass rendering: non-forced first, then forced on top (so red is always visible)
+  var deferredForced = [];
+
   App.currentData.forEach(function(f) {
     var p = f.properties;
     var type = useOriginal ? classifyFn(p.authority) : classifyFn(p.authority, p.forced_fee);
@@ -124,31 +165,27 @@ App.renderMap = function(fitBounds) {
       heatPoints.push([lat, lng, isForced ? 1.0 : 0.5]);
     }
 
+    // Defer forced fee parcels to render on top
+    if (isForced && highlightForced) {
+      deferredForced.push({ f: f, p: p, type: type, lat: lat, lng: lng });
+      return;
+    }
+
     // Parcel polygons at zoom >= 9
     if (showPoints && showParcels && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')) {
       var fillColor, borderColor, fillOpacity, dashArray = null, weight = 1;
-      if (useOriginal && isForced && type === 'trust') {
-        // Original mode: forced-fee shows as trust with orange dashed border hint
-        fillColor = '#0b5394'; borderColor = '#e07800'; fillOpacity = 0.45;
-        dashArray = '4,3'; weight = 1.5;
-      } else if (isForced && highlightForced) {
-        fillColor = '#b71c1c'; borderColor = '#8b1515'; fillOpacity = 0.6;
-      } else if (type === 'fee') {
-        fillColor = '#e07800'; borderColor = '#bf5f00'; fillOpacity = 0.55;
+      if (type === 'fee') {
+        fillColor = '#e07800'; borderColor = '#9a5200'; fillOpacity = 0.95;
       } else if (type === 'trust') {
-        fillColor = '#0b5394'; borderColor = '#073d6e'; fillOpacity = 0.5;
+        fillColor = '#1565c0'; borderColor = '#0d47a1'; fillOpacity = 0.95;
       } else {
-        fillColor = '#9a9490'; borderColor = '#6a6460'; fillOpacity = 0.25;
+        fillColor = '#9a9490'; borderColor = '#6a6460'; fillOpacity = 0.6;
       }
 
       var parcel = L.geoJSON(f.geometry, {
         style: {
-          fillColor: fillColor,
-          color: borderColor,
-          weight: weight,
-          fillOpacity: fillOpacity,
-          opacity: 0.7,
-          dashArray: dashArray
+          fillColor: fillColor, color: borderColor, weight: weight,
+          fillOpacity: fillOpacity, opacity: 0.7, dashArray: dashArray
         }
       });
       parcel.bindPopup(function() { return App.makePopup(p); });
@@ -161,8 +198,6 @@ App.renderMap = function(fitBounds) {
       if (useOriginal && isForced && type === 'trust') {
         color = '#0b5394'; radius = 3.5; opacity = 0.65;
         markerBorder = '#e07800'; markerWeight = 1.5;
-      } else if (isForced && highlightForced) {
-        color = '#b71c1c'; radius = 4; opacity = 0.85;
       } else if (type === 'fee') {
         color = '#e07800'; radius = 3.5; opacity = 0.7;
       } else if (type === 'trust') {
@@ -175,8 +210,30 @@ App.renderMap = function(fitBounds) {
         radius: radius, fillColor: color, fillOpacity: opacity,
         color: markerBorder, weight: markerWeight
       });
-
       marker.bindPopup(function() { return App.makePopup(p); });
+      App.pointLayer.addLayer(marker);
+    }
+  });
+
+  // Second pass: render forced fee parcels on top so red is always visible
+  deferredForced.forEach(function(d) {
+    if (showPoints && showParcels && (d.f.geometry.type === 'Polygon' || d.f.geometry.type === 'MultiPolygon')) {
+      var parcel = L.geoJSON(d.f.geometry, {
+        style: {
+          fillColor: '#c62828', color: '#ffd600', weight: 2,
+          fillOpacity: 0.95, opacity: 1
+        }
+      });
+      parcel.bindPopup(function() { return App.makePopup(d.p); });
+      App.parcelLayer.addLayer(parcel);
+    }
+
+    if (showPoints && (!showParcels || d.f.geometry.type === 'Point')) {
+      var marker = L.circleMarker([d.lat, d.lng], {
+        radius: 4, fillColor: '#c62828', fillOpacity: 0.9,
+        color: '#ffd600', weight: 1.5
+      });
+      marker.bindPopup(function() { return App.makePopup(d.p); });
       App.pointLayer.addLayer(marker);
     }
   });
@@ -297,10 +354,25 @@ App.makePopup = function(p) {
 
   // Show conversion path for forced-fee patents
   var conversionNote = '';
+  var sectionContext = '';
   if (isForced) {
     var originalType = App.classifyPatentOriginal(p.authority);
     if (originalType === 'trust') {
       conversionNote = '<div class="popup-conversion">Issued as Trust \u2192 Converted to Fee (forced)</div>';
+    }
+    // Add section-level context so user understands this parcel in aggregate
+    var twp = p.township_number, rng = p.range_number, sec = p.section_number;
+    if (twp && rng && sec) {
+      var secKey = 'T' + twp + 'R' + rng + ' \u00a7' + sec;
+      var sc = App.analysisCache.sectionCounts;
+      if (sc && sc[secKey]) {
+        var allotteeCount = sc[secKey].allottees ? sc[secKey].allottees.size : sc[secKey].forced;
+        if (allotteeCount > 1) {
+          sectionContext = '<div style="margin-top:4px;padding:3px 6px;background:rgba(198,40,40,0.08);border-left:3px solid #c62828;font-size:10px;color:var(--text-dim);">' +
+            '1 of <strong>' + allotteeCount + '</strong> forced fee allottees in this section' +
+            '</div>';
+        }
+      }
     }
   }
 
@@ -315,5 +387,25 @@ App.makePopup = function(p) {
     '<div class="popup-row"><span class="k">Location</span><span class="v">T' + (p.township_number || '?') + ' R' + (p.range_number || '?') + ' \u00a7' + (p.section_number || '?') + ' ' + (p.aliquot_parts || '') + '</span></div>' +
     '<div class="popup-row"><span class="k">Accession</span><span class="v">' + (p.accession_number || '\u2014') + '</span></div>' +
     (p.cancelled_doc === 'True' ? '<div style="color:var(--text-faint);font-style:italic;margin-top:4px;">Cancelled</div>' : '') +
+    sectionContext +
     '</div>';
 };
+
+App.switchBasemap = function(key) {
+  if (key === App._activeBasemap) return;
+  // Remove current basemap
+  App.map.removeLayer(App._basemaps[App._activeBasemap]);
+  // Remove reference layer if it was added (light gray uses it)
+  if (App.map.hasLayer(App._basemapRef)) App.map.removeLayer(App._basemapRef);
+  // Add new basemap
+  App._basemaps[key].addTo(App.map);
+  App._basemaps[key].bringToBack();
+  // Light gray needs a reference overlay for labels
+  if (key === 'lightGray') App._basemapRef.addTo(App.map);
+  App._activeBasemap = key;
+  // Update button states
+  document.querySelectorAll('.basemap-btn').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.getElementById('btn-basemap-' + key);
+  if (btn) btn.classList.add('active');
+};
+

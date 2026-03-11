@@ -31,6 +31,15 @@
   <!-- Left: Controls -->
   <div class="controls">
     <div class="ctrl-section">
+      <div class="ctrl-label">Name Search</div>
+      <div class="ctrl-row" style="gap:4px;">
+        <input class="ctrl-input" id="name-search" placeholder="e.g. Caleb Carter" style="flex:1;" />
+        <button class="ctrl-btn" id="name-search-btn" style="white-space:nowrap;">Find</button>
+      </div>
+      <div id="name-results" class="name-results"></div>
+    </div>
+
+    <div class="ctrl-section">
       <div class="ctrl-label">Patent Category</div>
       <select class="ctrl-select" id="sel-category">
         <option value="all">All Patents (239,845)</option>
@@ -74,6 +83,12 @@
 
     <div class="ctrl-section">
       <div class="ctrl-label">Map Display</div>
+      <div class="ctrl-row" style="gap:4px;margin-bottom:6px;">
+        <button class="ctrl-btn basemap-btn active" id="btn-basemap-topo" onclick="switchBasemap('topo')">Topo</button>
+        <button class="ctrl-btn basemap-btn" id="btn-basemap-lightGray" onclick="switchBasemap('lightGray')">Light Gray</button>
+      </div>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-reservations" /> Federal Indian Reservations</label>
+      <label class="ctrl-checkbox"><input type="checkbox" id="chk-rankin" /> Rankin Map, Crow Reservation 1907</label>
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-heatmap" checked /> Fee patent density heatmap</label>
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-points" checked /> Show individual patents</label>
       <label class="ctrl-checkbox"><input type="checkbox" id="chk-forced-highlight" checked /> Highlight forced fee</label>
@@ -83,9 +98,9 @@
 
     <div class="ctrl-section">
       <div class="ctrl-label">Legend</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:rgba(11,83,148,0.5);border:1px solid #073d6e;"></div>Trust Patent<span class="legend-count" id="leg-trust">—</span></div>
-      <div class="legend-item"><div class="legend-swatch" style="background:rgba(224,120,0,0.55);border:1px solid #bf5f00;"></div>Fee Patent<span class="legend-count" id="leg-fee">—</span></div>
-      <div class="legend-item"><div class="legend-swatch" style="background:rgba(183,28,28,0.6);border:1px solid #8b1515;"></div>Forced Fee<span class="legend-count" id="leg-forced">—</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#1565c0;border:1px solid #0d47a1;"></div>Trust Patent<span class="legend-count" id="leg-trust">—</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#e07800;border:1px solid #9a5200;"></div>Fee Patent<span class="legend-count" id="leg-fee">—</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c62828;border:2px solid #ffd600;"></div>Forced Fee<span class="legend-count" id="leg-forced">—</span></div>
       <div class="legend-item"><div class="legend-swatch" style="background:rgba(154,148,144,0.25);border:1px solid #6a6460;"></div>Other / Unclassified</div>
     </div>
 
@@ -171,9 +186,10 @@
     </div>
 
     <div class="analysis-section">
-      <div class="analysis-title">Spatial Clustering</div>
-      <div class="analysis-subtitle">Are conversions random or clustered?</div>
-      <div class="insight" id="insight-spatial">Run analysis with data loaded to compute spatial statistics.</div>
+      <div class="analysis-title">Forced Fee Rate by Reservation</div>
+      <div class="analysis-subtitle">What share of each reservation's fee patents were forced?</div>
+      <div class="chart-container"><canvas id="chart-forced-rate" height="160"></canvas></div>
+      <div class="insight" id="insight-forced-rate">—</div>
     </div>
 
     <div class="analysis-section">

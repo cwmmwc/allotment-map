@@ -1,0 +1,76 @@
+ALLOTMENT PATENT PATTERN ANALYSIS — CHEAT SHEET
+=================================================
+
+PROJECT LOCATION
+  /Users/cwm6W/projects/patent-analysis
+
+GITHUB
+  https://github.com/cwmmwc/allotment-map
+
+START THE APP
+  cd /Users/cwm6W/projects/patent-analysis
+  python3 -m http.server 8000
+  Open http://localhost:8000
+
+  Note: Port 5001 = Indian Land Allotment Research app
+        Port 5002 = Crow Nation Digital Archive
+        Port 8000 = This app (Allotment Patent Pattern Analysis)
+        Port 8501 = Streamlit Analysis Interface
+
+FILES TO KNOW
+  index.html          Main page layout
+  css/styles.css      All styles
+  js/config.js        App state, tribe aliases, Esri service URL
+  js/controls.js      Left panel UI, name search, context toggle
+  js/map.js           Map rendering, basemaps, overlays, popups
+  js/data.js          Esri queries, data loading, analysis triggers
+  js/timeline.js      Cumulative timeline mode
+  js/analysis.js      Right panel charts and stats
+  js/main.js          Boot sequence, URL deep-linking
+
+KEY FEATURES
+
+  Name Search
+    - Top of left panel, type any allottee name
+    - Case-insensitive, matches partial names
+    - Click a result to zoom to the parcel
+    - Toggle "Show all [tribe] patents" for context
+
+  Basemaps (Map Display section)
+    - Topo: Esri World Topographic (default, detailed)
+    - Light Gray: minimal background
+
+  Overlays (checkboxes)
+    - Federal Indian Reservations: Census TIGERweb boundaries
+    - Rankin Map 1907: historic Crow allotment map (UVA Library)
+    - Fee patent density heatmap
+    - Individual patents (markers or parcels)
+    - Forced fee highlighting (red with yellow border)
+
+  Timeline
+    - Check "Cumulative timeline mode"
+    - Starts 10 years before first patent (blank slate)
+    - Play button animates year by year
+    - Speed: 1, 2, or 5 yr/sec
+    - Shows trust vs fee accumulation over time
+
+  Analysis (right panel)
+    - Summary stats, temporal distribution
+    - Trust vs Fee timeline, forced fee rates
+    - Conversion velocity, top counties
+    - Compare Tribes tab for side-by-side breakdown
+
+DATA
+  239,845 allotment patents from Esri Feature Service
+  Source: land-sales.iath.virginia.edu (UVA IATH)
+  Fields: full_name, preferred_name (tribe), signature_date,
+          authority, state, county, forced_fee, geometry
+
+URL DEEP-LINKING
+  http://localhost:8000?tribe=Crow
+  http://localhost:8000?tribe=Crow&accession=SOME_ID
+
+RELATED PROJECTS
+  Crow Archive:     /Users/cwm6W/Documents/UVA/UVa 2025-26/Crow archive website
+  Extraction:       /Users/cwm6W/Documents/UVA/UVa 2025-26/exhaustive-extraction-pipeline
+  HAVI Proposal:    /Users/cwm6W/Documents/UVA/UVa 2025-26/Schmidt/HAVI_Integrated_Proposal_FINAL.docx

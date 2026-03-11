@@ -35,7 +35,7 @@ App.toggleTimeline = function(enabled) {
     appEl.classList.add('timeline-active');
     App.drawTimelineChart();
 
-    var startYear = App.timelineIndex[0]._tlYear;
+    var startYear = App.timelineIndex[0]._tlYear - 10;
     App.setTimelineYear(startYear);
     overlay.style.display = '';
   } else {
@@ -81,9 +81,12 @@ App.drawTimelineChart = function() {
 
   if (minYear > maxYear) return;
 
+  // Start 10 years before first patent so timeline shows the "blank slate"
+  var displayMin = minYear - 10;
+
   // Build year array
   var years = [];
-  for (var y = minYear; y <= maxYear; y++) years.push(y);
+  for (var y = displayMin; y <= maxYear; y++) years.push(y);
 
   // Find max stacked value (fee already includes forced)
   var maxVal = 1;
@@ -128,12 +131,12 @@ App.drawTimelineChart = function() {
 
   // Store layout info for hit-testing and slider
   App._tlYears = years;
-  App._tlMinYear = minYear;
+  App._tlMinYear = displayMin;
   App._tlMaxYear = maxYear;
 
   // Sync range slider bounds
   var slider = document.getElementById('tl-slider');
-  slider.min = minYear;
+  slider.min = displayMin;
   slider.max = maxYear;
   slider.value = App.timelineYear || minYear;
 };

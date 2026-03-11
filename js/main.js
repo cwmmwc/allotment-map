@@ -32,6 +32,7 @@ App.init = async function() {
 // Expose globals for onclick handlers in HTML
 window.runAnalysis = function() { return App.runAnalysis(); };
 window.setTimePreset = function(start, end) { return App.setTimePreset(start, end); };
+window.switchBasemap = function(key) { return App.switchBasemap(key); };
 
 // Boot
 App.init().catch(function(err) {
